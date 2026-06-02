@@ -1,5 +1,6 @@
 import { TEAMS } from "./teams.js";
 import { saveResults, loadResults } from "./storage.js";
+import { BEST_THIRDS_COMBINATIONS } from "./combinations.js";
 
 // ─── Estructura del cuadro final FIFA 2026 ────────────────────────────────
 // Cada ronda define pares de partidos que alimentan el siguiente.
@@ -72,11 +73,25 @@ const ROUNDS = [
 
 const THIRD_PLACE = { id: "third_1", seedHome: "P sf_1", seedAway: "P sf_2", date: "18 jul", venue: "Miami" };
 
+// Matches in r32 where the away team is a best-third; key = matchId, value = home seed (e.g. "1E")
+const R32_THIRD_MATCHES = {
+  r32_1:  "1E",
+  r32_2:  "1I",
+  r32_7:  "1D",
+  r32_8:  "1G",
+  r32_11: "1A",
+  r32_12: "1L",
+  r32_15: "1B",
+  r32_16: "1K",
+};
+
 // ─── Estado del cuadro ───────────────────────────────────────────────────
 // bracketTeams[matchId] = { home: teamCode|null, away: teamCode|null }
 // bracketResults[matchId] = { home: "", away: "" }
+// resolvedThirdLabels[matchId] = specific third seed label (e.g. "3E") or null
 const bracketTeams = {};
 const bracketResults = {};
+const resolvedThirdLabels = {};
 
 function loadBracketState() {
   const saved = loadResults("bracket");
@@ -149,8 +164,16 @@ function propagateWinners() {
   if (aSrc) bracketTeams[THIRD_PLACE.id].away = losers[aSrc[1]] || null;
 }
 
+// ─── Obtener combinación de cruces según los mejores terceros clasificados ──
+function getCurrentCombination() {
+  const key = localStorage.getItem("worldcup2026_best_thirds_groups") || "";
+  return BEST_THIRDS_COMBINATIONS[key] || null;
+}
+
 // ─── Actualizar seeds de grupos en r32 ──────────────────────────────────
 export function refreshBracketSeeds(qualified) {
+  const combination = getCurrentCombination();
+
   const r32 = ROUNDS[0];
   for (const m of r32.matches) {
     if (!bracketTeams[m.id]) bracketTeams[m.id] = { home: null, away: null };
@@ -158,7 +181,14 @@ export function refreshBracketSeeds(qualified) {
       bracketTeams[m.id].home = resolveGroupSeed(m.seedHome, qualified);
     }
     if (!m.seedAway.startsWith("W") && !m.seedAway.startsWith("P")) {
-      bracketTeams[m.id].away = resolveGroupSeed(m.seedAway, qualified);
+      const homeSeed = R32_THIRD_MATCHES[m.id];
+      if (homeSeed && combination) {
+        const thirdSeed = combination[homeSeed];
+        resolvedThirdLabels[m.id] = thirdSeed || null;
+        bracketTeams[m.id].away = thirdSeed ? resolveGroupSeed(thirdSeed, qualified) : null;
+      } else {
+        bracketTeams[m.id].away = resolveGroupSeed(m.seedAway, qualified);
+      }
     }
   }
   propagateWinners();
@@ -173,11 +203,19 @@ export function buildBracket(container, qualified) {
   loadBracketState();
 
   // Seed initial group teams
+  const combination = getCurrentCombination();
   const r32 = ROUNDS[0];
   for (const m of r32.matches) {
     if (!bracketTeams[m.id]) bracketTeams[m.id] = { home: null, away: null };
     bracketTeams[m.id].home = resolveGroupSeed(m.seedHome, qualified);
-    bracketTeams[m.id].away = resolveGroupSeed(m.seedAway, qualified);
+    const homeSeed = R32_THIRD_MATCHES[m.id];
+    if (homeSeed && combination) {
+      const thirdSeed = combination[homeSeed];
+      resolvedThirdLabels[m.id] = thirdSeed || null;
+      bracketTeams[m.id].away = thirdSeed ? resolveGroupSeed(thirdSeed, qualified) : null;
+    } else {
+      bracketTeams[m.id].away = resolveGroupSeed(m.seedAway, qualified);
+    }
   }
   propagateWinners();
 
@@ -281,7 +319,8 @@ function buildTeamSlot(matchId, side, seedLabel) {
   if (team) {
     nameSpan.textContent = `${team.flag} ${team.code}`;
   } else {
-    nameSpan.textContent = seedLabel;
+    const label = (side === "away" && resolvedThirdLabels[matchId]) ? resolvedThirdLabels[matchId] : seedLabel;
+    nameSpan.textContent = label;
     nameSpan.classList.add("bracket-team__name--seed");
   }
 
@@ -316,7 +355,11 @@ function renderBracketTeams() {
       span.textContent = `${team.flag} ${team.code}`;
       span.classList.remove("bracket-team__name--seed");
     } else {
-      span.textContent = match ? (side === "home" ? match.seedHome : match.seedAway) : "–";
+      let label = match ? (side === "home" ? match.seedHome : match.seedAway) : "–";
+      if (side === "away" && resolvedThirdLabels[matchId]) {
+        label = resolvedThirdLabels[matchId];
+      }
+      span.textContent = label;
       span.classList.add("bracket-team__name--seed");
     }
   });
