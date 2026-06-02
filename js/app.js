@@ -8,6 +8,7 @@ import {
 import { computeStandings } from "./standings.js";
 import { saveResults, loadResults, clearResults } from "./storage.js";
 import { buildBracket, refreshBracketSeeds } from "./bracket.js";
+import { renderThirdsView } from "./thirds.js";
 
 // ─── Configuración de grupos ───────────────────────────────────────────────
 // Para agregar un nuevo grupo solo hay que añadir una entrada a este array.
@@ -39,6 +40,7 @@ function init() {
     grid.appendChild(buildGroupArticle(group));
   }
   buildBracket(document.getElementById("bracket-root"), getQualifiedTeams());
+  renderThirdsView(document.getElementById("phase-thirds"), getQualifiedTeams());
   initTabs();
 }
 
@@ -49,8 +51,10 @@ function initTabs() {
       btn.classList.add("tab-btn--active");
       const tab = btn.dataset.tab;
       document.getElementById("phase-groups").classList.toggle("hidden", tab !== "groups");
+      document.getElementById("phase-thirds").classList.toggle("hidden", tab !== "thirds");
       document.getElementById("phase-bracket").classList.toggle("hidden", tab !== "bracket");
       if (tab === "bracket") refreshBracketSeeds(getQualifiedTeams());
+      if (tab === "thirds") renderThirdsView(document.getElementById("phase-thirds"), getQualifiedTeams());
     });
   });
 }
@@ -271,7 +275,9 @@ function handleScoreChange(group, fixtureId, homeInput, awayInput) {
   state[group.id][fixtureId] = { home: homeInput.value, away: awayInput.value };
   saveResults(group.id, state[group.id]);
   updateStandingsDOM(group);
-  refreshBracketSeeds(getQualifiedTeams());
+  const qualified = getQualifiedTeams();
+  refreshBracketSeeds(qualified);
+  renderThirdsView(document.getElementById("phase-thirds"), qualified);
 }
 
 // ─── Reinicio ──────────────────────────────────────────────────────────────
@@ -286,7 +292,9 @@ function resetGroup(group) {
   article.querySelectorAll(".score-input").forEach(input => { input.value = ""; });
 
   updateStandingsDOM(group);
-  refreshBracketSeeds(getQualifiedTeams());
+  const qualified = getQualifiedTeams();
+  refreshBracketSeeds(qualified);
+  renderThirdsView(document.getElementById("phase-thirds"), qualified);
 }
 
 // ─── Utilidades ────────────────────────────────────────────────────────────

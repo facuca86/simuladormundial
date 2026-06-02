@@ -643,6 +643,51 @@ td.pts {
   box-shadow: 0 0 0 2px rgba(30,144,255,0.2);
 }
 
+/* ── Mejores Terceros ───────────────────────────────────────────────────── */
+.thirds-container {
+  max-width: 820px;
+  margin: 2rem auto;
+}
+
+.thirds-header {
+  background: linear-gradient(90deg, var(--accent) 0%, #0055cc 100%);
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 1rem 1.5rem;
+}
+
+.thirds-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.thirds-table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  padding: 0.5rem 0;
+}
+
+.thirds-table {
+  width: 100%;
+}
+
+.grupo-col {
+  text-align: center !important;
+  width: 70px;
+}
+
+.grupo-cell {
+  text-align: center;
+  font-weight: 800;
+  color: var(--accent2);
+  font-size: 0.95rem;
+  letter-spacing: 1px;
+}
+
 /* ── Responsive ────────────────────────────────────────────────────────── */
 @media (max-width: 480px) {
   .groups-grid { grid-template-columns: 1fr; }
