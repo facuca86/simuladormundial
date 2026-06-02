@@ -14,9 +14,18 @@
     <p class="subtitle">Simulador de grupos &amp; resultados</p>
   </header>
 
+  <nav class="tab-nav">
+    <button class="tab-btn tab-btn--active" data-tab="groups">Fase de Grupos</button>
+    <button class="tab-btn" data-tab="bracket">Fase Final</button>
+  </nav>
+
   <main class="main-container">
-    <!-- Los 12 grupos se generan dinámicamente por app.js -->
-    <div id="groups-grid" class="groups-grid"></div>
+    <div id="phase-groups">
+      <div id="groups-grid" class="groups-grid"></div>
+    </div>
+    <div id="phase-bracket" class="hidden">
+      <div id="bracket-root"></div>
+    </div>
   </main>
 
   <footer class="site-footer">
