@@ -1,4 +1,4 @@
-// 489 combinaciones de cruce de mejores terceros — FIFA World Cup 2026
+// 495 combinaciones de cruce de mejores terceros — FIFA World Cup 2026
 // Clave: 8 letras de grupo ordenadas alfabéticamente (ej. "DEFGHIKL")
 // Valor: mapeo de equipo primero → tercero que enfrenta (ej. {"1A":"3E",...})
 
@@ -492,4 +492,10 @@ export const BEST_THIRDS_COMBINATIONS = {
   "DEFGHIJK": {"1A":"3E", "1B":"3G", "1D":"3J", "1E":"3D", "1G":"3H", "1I":"3F", "1K":"3I", "1L":"3K"},
   "DEFGHIJL": {"1A":"3E", "1B":"3G", "1D":"3J", "1E":"3D", "1G":"3H", "1I":"3F", "1K":"3L", "1L":"3I"},
   "DEFGHIKL": {"1A":"3E", "1B":"3G", "1D":"3I", "1E":"3D", "1G":"3H", "1I":"3F", "1K":"3L", "1L":"3K"},
+  "DEFGHJKL": {"1A":"3E", "1B":"3G", "1D":"3J", "1E":"3D", "1G":"3H", "1I":"3F", "1K":"3L", "1L":"3K"},
+  "DEFGIJKL": {"1A":"3E", "1B":"3G", "1D":"3I", "1E":"3D", "1G":"3J", "1I":"3F", "1K":"3L", "1L":"3K"},
+  "DEFHIJKL": {"1A":"3E", "1B":"3J", "1D":"3I", "1E":"3D", "1G":"3H", "1I":"3F", "1K":"3L", "1L":"3K"},
+  "DEGHIJKL": {"1A":"3E", "1B":"3J", "1D":"3I", "1E":"3D", "1G":"3H", "1I":"3G", "1K":"3L", "1L":"3K"},
+  "DFGHIJKL": {"1A":"3H", "1B":"3G", "1D":"3I", "1E":"3D", "1G":"3J", "1I":"3F", "1K":"3L", "1L":"3K"},
+  "EFGHIJKL": {"1A":"3E", "1B":"3J", "1D":"3I", "1E":"3F", "1G":"3H", "1I":"3G", "1K":"3L", "1L":"3K"},
 };
