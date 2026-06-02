@@ -7,6 +7,7 @@ import {
 } from "./fixtures.js";
 import { computeStandings } from "./standings.js";
 import { saveResults, loadResults, clearResults } from "./storage.js";
+import { buildBracket, refreshBracketSeeds } from "./bracket.js";
 
 // ─── Configuración de grupos ───────────────────────────────────────────────
 // Para agregar un nuevo grupo solo hay que añadir una entrada a este array.
@@ -37,6 +38,30 @@ function init() {
   for (const group of GROUPS) {
     grid.appendChild(buildGroupArticle(group));
   }
+  buildBracket(document.getElementById("bracket-root"), getQualifiedTeams());
+  initTabs();
+}
+
+function initTabs() {
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("tab-btn--active"));
+      btn.classList.add("tab-btn--active");
+      const tab = btn.dataset.tab;
+      document.getElementById("phase-groups").classList.toggle("hidden", tab !== "groups");
+      document.getElementById("phase-bracket").classList.toggle("hidden", tab !== "bracket");
+      if (tab === "bracket") refreshBracketSeeds(getQualifiedTeams());
+    });
+  });
+}
+
+export function getQualifiedTeams() {
+  const qualified = {};
+  for (const g of GROUPS) {
+    const rows = computeStandings(g.teams, g.fixtures, state[g.id]);
+    qualified[g.label] = rows;
+  }
+  return qualified;
 }
 
 // ─── Construcción del artículo de grupo ────────────────────────────────────
@@ -45,16 +70,19 @@ function buildGroupArticle(group) {
   article.classList.add("group-article");
   article.id = `group-${group.id}`;
 
-  // Cabecera: nombre del grupo + lista de equipos
+  // Cabecera: nombre del grupo + tiles de banderas
   article.innerHTML = `
     <header class="group-article__header">
-      <h2 class="group-title">GRUPO ${group.label}</h2>
-      <ul class="team-list">
+      <div class="group-header-top">
+        <h2 class="group-title">GRUPO ${group.label}</h2>
+        <span class="group-stats-icon">📊</span>
+      </div>
+      <div class="team-tiles">
         ${group.teams.map(code => {
           const t = TEAMS[code];
-          return `<li><span class="flag">${t.flag}</span> ${t.name}</li>`;
+          return `<div class="team-tile"><span class="tile-flag">${t.flag}</span><span class="tile-code">${code}</span></div>`;
         }).join("")}
-      </ul>
+      </div>
     </header>
   `;
 
@@ -243,6 +271,7 @@ function handleScoreChange(group, fixtureId, homeInput, awayInput) {
   state[group.id][fixtureId] = { home: homeInput.value, away: awayInput.value };
   saveResults(group.id, state[group.id]);
   updateStandingsDOM(group);
+  refreshBracketSeeds(getQualifiedTeams());
 }
 
 // ─── Reinicio ──────────────────────────────────────────────────────────────
@@ -257,6 +286,7 @@ function resetGroup(group) {
   article.querySelectorAll(".score-input").forEach(input => { input.value = ""; });
 
   updateStandingsDOM(group);
+  refreshBracketSeeds(getQualifiedTeams());
 }
 
 // ─── Utilidades ────────────────────────────────────────────────────────────
