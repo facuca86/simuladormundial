@@ -9,6 +9,7 @@ import { computeStandings } from "./standings.js";
 import { saveResults, loadResults, clearResults } from "./storage.js";
 import { buildBracket, refreshBracketSeeds, scaleBracketToFit } from "./bracket.js";
 import { renderThirdsView } from "./thirds.js";
+import { renderHistoriaView } from "./historia.js";
 
 // ─── Configuración de grupos ───────────────────────────────────────────────
 // Para agregar un nuevo grupo solo hay que añadir una entrada a este array.
@@ -45,16 +46,16 @@ function init() {
 }
 
 function initTabs() {
+  const TABS = ["groups", "thirds", "bracket", "historia"];
   document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("tab-btn--active"));
       btn.classList.add("tab-btn--active");
       const tab = btn.dataset.tab;
-      document.getElementById("phase-groups").classList.toggle("hidden", tab !== "groups");
-      document.getElementById("phase-thirds").classList.toggle("hidden", tab !== "thirds");
-      document.getElementById("phase-bracket").classList.toggle("hidden", tab !== "bracket");
+      TABS.forEach(t => document.getElementById(`phase-${t}`).classList.toggle("hidden", tab !== t));
       if (tab === "bracket") { refreshBracketSeeds(getQualifiedTeams()); scaleBracketToFit(); }
       if (tab === "thirds") renderThirdsView(document.getElementById("phase-thirds"), getQualifiedTeams());
+      if (tab === "historia") renderHistoriaView(document.getElementById("phase-historia"));
     });
   });
 }

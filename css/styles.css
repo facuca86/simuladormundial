@@ -895,3 +895,465 @@ td.pts {
   .team-tile   { min-width: 44px; padding: 0.35rem 0.4rem; }
   .tile-flag   { font-size: 1.3rem; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   HISTORIA DE LA COPA DEL MUNDO
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.historia-wrapper {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+}
+
+.historia-titulo {
+  text-align: center;
+  font-size: clamp(1.4rem, 3vw, 2.2rem);
+  font-weight: 900;
+  letter-spacing: 1px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.4rem;
+}
+
+.historia-subtitulo {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 2.5rem;
+}
+
+.historia-seccion {
+  margin-bottom: 2.5rem;
+}
+
+.historia-seccion__label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.2rem;
+}
+
+/* ── Poster Grid ──────────────────────────────────────────────────────────── */
+.historia-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.historia-grid--especial {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+/* ── Poster Card ──────────────────────────────────────────────────────────── */
+.historia-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+
+.historia-card:hover,
+.historia-card:focus-visible {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 24px rgba(0, 198, 255, 0.25);
+  border-color: var(--accent);
+  outline: none;
+}
+
+.historia-card__img-wrapper {
+  width: 100%;
+  aspect-ratio: 3/4;
+  overflow: hidden;
+  background: linear-gradient(135deg, #0d1b2a 0%, #1a2d44 50%, #0d1b2a 100%);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.historia-card__img-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s;
+}
+
+.historia-card:hover .historia-card__img-wrapper img {
+  transform: scale(1.05);
+}
+
+/* Fallback cuando no hay imagen */
+.historia-card__img-fallback::after {
+  content: attr(data-year) attr(data-icon);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 900;
+  color: var(--accent2);
+  opacity: 0.7;
+  text-align: center;
+  line-height: 1;
+}
+
+.historia-card__info {
+  padding: 0.6rem 0.75rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+}
+
+.historia-card__año {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: var(--accent2);
+  letter-spacing: 1px;
+}
+
+.historia-card__sede {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.historia-card__campeon {
+  font-size: 0.8rem;
+  color: #f0c040;
+  font-weight: 700;
+  margin-top: 0.2rem;
+}
+
+.historia-card--especial .historia-card__img-wrapper {
+  aspect-ratio: 16/9;
+  background: linear-gradient(135deg, #1a1035 0%, #2a1a55 50%, #1a1035 100%);
+}
+
+.historia-card__info--especial {
+  align-items: center;
+  padding: 1rem;
+}
+
+.historia-card__titulo-especial {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text);
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+/* ── Modal Overlay ────────────────────────────────────────────────────────── */
+.historia-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 1000;
+  padding: 1rem;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.historia-modal-overlay--visible {
+  display: flex;
+}
+
+/* ── Modal Box ────────────────────────────────────────────────────────────── */
+.historia-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-width: 640px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  animation: modalIn 0.25s ease;
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Scrollbar del modal */
+.historia-modal::-webkit-scrollbar { width: 6px; }
+.historia-modal::-webkit-scrollbar-track { background: var(--surface); }
+.historia-modal::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.historia-modal__close {
+  position: sticky;
+  top: 0.75rem;
+  float: right;
+  margin: 0.75rem 0.75rem 0 0;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--border);
+  color: var(--text);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.historia-modal__close:hover {
+  background: rgba(255,255,255,0.18);
+}
+
+/* ── Modal Header ─────────────────────────────────────────────────────────── */
+.historia-modal__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  margin-top: -32px;
+}
+
+.historia-modal__header--especial {
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 2rem;
+  margin-top: -32px;
+}
+
+.historia-modal__header-icon {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.historia-modal__año-badge {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #000;
+  font-size: 1.5rem;
+  font-weight: 900;
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius-sm);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.historia-modal__header-text {
+  flex: 1;
+}
+
+.historia-modal__title {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: var(--text);
+  margin: 0 0 0.2rem;
+}
+
+.historia-modal__sede {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ── Modal Body ───────────────────────────────────────────────────────────── */
+.historia-modal__body {
+  padding: 1.25rem 1.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.historia-modal__resumen {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.7;
+  border-left: 3px solid var(--accent);
+  padding-left: 0.85rem;
+}
+
+/* ── Podio ────────────────────────────────────────────────────────────────── */
+.historia-modal__podio {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.podio-item {
+  flex: 1;
+  min-width: 120px;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.podio-item--oro   { border-color: #f0c040; }
+.podio-item--plata { border-color: #b0b8c4; }
+.podio-item--bronce { border-color: #cd7f32; }
+
+.podio-item__medalla { font-size: 1.5rem; line-height: 1; }
+.podio-item__label   { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); }
+.podio-item__equipo  { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+
+/* ── Final details ────────────────────────────────────────────────────────── */
+.historia-modal__section-title {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  margin: 0 0 0.75rem;
+  font-weight: 700;
+}
+
+.historia-modal__final {
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+}
+
+.final-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.final-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.final-item--resultado {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  align-items: center;
+  border: 1px solid var(--border);
+}
+
+.final-item__label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+.final-item__value {
+  font-size: 0.9rem;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.final-item__value--big {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: var(--accent2);
+  text-align: center;
+}
+
+/* ── Stats Grid ───────────────────────────────────────────────────────────── */
+.stats-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stat-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border);
+  transition: border-color 0.2s;
+}
+
+.stat-row:hover {
+  border-color: var(--accent);
+}
+
+.stat-row__icono {
+  font-size: 1.4rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.stat-row__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.stat-row__titulo {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+.stat-row__valor {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--accent2);
+}
+
+.stat-row__detalle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* ── Trofeo Sections ──────────────────────────────────────────────────────── */
+.trofeo-seccion {
+  padding: 0.1rem 0 0.25rem;
+}
+
+.trofeo-seccion + .trofeo-seccion {
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+.trofeo-seccion__titulo {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #f0c040;
+  margin-bottom: 0.6rem;
+}
+
+.trofeo-seccion__texto {
+  font-size: 0.88rem;
+  line-height: 1.75;
+  color: var(--text-muted);
+}
+
+/* ── Responsive Historia ──────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .historia-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.7rem; }
+  .historia-modal { max-height: 95vh; }
+  .historia-modal__header { padding: 1rem 1rem 0.75rem; }
+  .historia-modal__body { padding: 1rem; }
+  .final-grid { grid-template-columns: 1fr; }
+  .historia-modal__podio { gap: 0.5rem; }
+  .podio-item { min-width: 90px; }
+}
