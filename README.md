@@ -15,6 +15,7 @@ Abre `index.html` en el navegador o publica el repositorio en GitHub Pages.
 - Persistencia automática en LocalStorage
 - Restauración de resultados al recargar la página
 - Botón de reinicio con confirmación
+- UT
 
 ## Estructura de archivos
 
