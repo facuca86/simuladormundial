@@ -470,9 +470,9 @@ td.pts {
 
 .bracket-inner {
   display: flex;
-  gap: 0;
+  gap: 28px;
   min-width: max-content;
-  align-items: flex-start;
+  align-items: stretch;
 }
 
 .bracket-round {
@@ -497,6 +497,11 @@ td.pts {
   text-align: center;
   padding: 0.4rem 0.5rem 0.75rem;
   white-space: nowrap;
+  height: 2.5rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .bracket-matches {
@@ -511,17 +516,31 @@ td.pts {
   flex-direction: column;
   flex: 1;
   position: relative;
+  justify-content: space-around;
 }
 
-/* Right-side connector from pair to next round */
+/* Vertical bar connecting both match centers (25%→75% of pair height) */
 .bracket-pair:not(.bracket-pair--single)::after {
   content: "";
   position: absolute;
-  right: -1px;
-  top: 50%;
+  right: 0;
+  top: 25%;
+  bottom: 25%;
   width: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+
+/* Horizontal exit at pair midpoint going right into the column gap */
+.bracket-pair:not(.bracket-pair--single)::before {
+  content: "";
+  position: absolute;
+  right: -28px;
+  top: calc(50% - 0.5px);
+  width: 28px;
   height: 1px;
-  /* The horizontal line is handled by the match right border */
+  background: var(--border);
+  pointer-events: none;
 }
 
 .bracket-match {
@@ -529,56 +548,42 @@ td.pts {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   margin: 0 0 0 0;
-  overflow: hidden;
   position: relative;
-  flex: 1;
+  flex: none;
 }
 
-/* Top match in a pair: connect line to bottom-right */
-.bracket-pair > .bracket-match:first-child {
+/* R32 pairs are tight (no space-around room) — keep connected look there */
+[data-round="r32"] .bracket-pair > .bracket-match:first-child {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
   border-bottom-color: transparent;
   margin-bottom: 0;
 }
 
-.bracket-pair > .bracket-match:last-child {
+[data-round="r32"] .bracket-pair > .bracket-match:last-child {
   border-top-left-radius: 0;
   border-top-right-radius: 0;
   border-top-color: transparent;
 }
 
-/* Pair wrapper: spacing between pairs */
-.bracket-matches .bracket-pair {
-  margin-bottom: 1.2rem;
-}
-
-/* Connector lines on right side of match pairs */
-.bracket-pair:not(.bracket-pair--single) > .bracket-match:first-child::after,
-.bracket-pair:not(.bracket-pair--single) > .bracket-match:last-child::after {
+/* Horizontal incoming line entering match from left gap */
+.bracket-round--has-incoming .bracket-pair > .bracket-match:first-child::before,
+.bracket-round--has-incoming .bracket-pair > .bracket-match:last-child::before {
   content: "";
   position: absolute;
-  right: -14px;
-  width: 14px;
-  height: 50%;
-  border-color: var(--border);
-  border-style: solid;
-  border-width: 0;
+  left: -28px;
+  top: 50%;
+  width: 28px;
+  height: 1px;
+  background: var(--border);
+  pointer-events: none;
 }
 
-.bracket-pair:not(.bracket-pair--single) > .bracket-match:first-child::after {
-  bottom: 0;
-  border-right-width: 1px;
-  border-bottom-width: 1px;
-  border-bottom-right-radius: 4px;
+/* Pair wrapper: spacing between pairs */
+.bracket-matches .bracket-pair {
+  margin-bottom: 0;
 }
 
-.bracket-pair:not(.bracket-pair--single) > .bracket-match:last-child::after {
-  top: 0;
-  border-right-width: 1px;
-  border-top-width: 1px;
-  border-top-right-radius: 4px;
-}
 
 .bracket-match__info {
   font-size: 0.6rem;

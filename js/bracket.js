@@ -225,8 +225,8 @@ export function buildBracket(container, qualified) {
   const inner = document.createElement("div");
   inner.className = "bracket-inner";
 
-  for (const round of ROUNDS) {
-    inner.appendChild(buildRoundColumn(round));
+  for (let ri = 0; ri < ROUNDS.length; ri++) {
+    inner.appendChild(buildRoundColumn(ROUNDS[ri], ri > 0));
   }
 
   // Third place column alongside final
@@ -237,9 +237,9 @@ export function buildBracket(container, qualified) {
   container.appendChild(wrapper);
 }
 
-function buildRoundColumn(round) {
+function buildRoundColumn(round, hasIncoming = false) {
   const col = document.createElement("div");
-  col.className = "bracket-round";
+  col.className = "bracket-round" + (hasIncoming ? " bracket-round--has-incoming" : "");
   col.dataset.round = round.id;
 
   const label = document.createElement("div");
@@ -253,10 +253,11 @@ function buildRoundColumn(round) {
   // Group matches into pairs for connector lines
   for (let i = 0; i < round.matches.length; i += 2) {
     const pair = document.createElement("div");
-    pair.className = "bracket-pair";
+    const hasPair = !!round.matches[i + 1];
+    pair.className = "bracket-pair" + (hasPair ? "" : " bracket-pair--single");
 
     pair.appendChild(buildMatchBox(round.matches[i]));
-    if (round.matches[i + 1]) {
+    if (hasPair) {
       pair.appendChild(buildMatchBox(round.matches[i + 1]));
     }
 
