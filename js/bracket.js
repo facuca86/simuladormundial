@@ -244,7 +244,7 @@ export function buildBracket(container, qualified) {
     document.body.appendChild(banner);
   }
 
-  updateChampion();
+  updateChampion(true);
 
   window.addEventListener("resize", scaleBracketToFit);
 }
@@ -430,7 +430,7 @@ function syncBracketScoreInputs() {
 }
 
 // ─── Campeón ─────────────────────────────────────────────────────────────
-function updateChampion() {
+function updateChampion(skipConfetti = false) {
   const finalMatch = ROUNDS[4].matches[0];
   const res = bracketResults[finalMatch.id];
   let champion = null;
@@ -467,10 +467,10 @@ function updateChampion() {
       champDisplay.classList.add("champion-display--visible");
     }
 
-    if (lastChampionCode !== champion.code) {
-      lastChampionCode = champion.code;
+    if (!skipConfetti && lastChampionCode !== champion.code) {
       launchConfetti();
     }
+    lastChampionCode = champion.code;
   } else {
     if (banner) banner.classList.remove("champion-banner--visible");
     if (champDisplay) champDisplay.classList.remove("champion-display--visible");
