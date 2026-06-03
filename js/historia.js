@@ -471,9 +471,18 @@ function crearTarjetaMundial(mundial) {
   img.alt = `Póster Mundial ${mundial.año} ${mundial.sede}`;
   img.loading = "lazy";
   img.onerror = function () {
-    this.style.display = "none";
-    imgWrapper.classList.add("historia-card__img-fallback");
-    imgWrapper.dataset.year = mundial.año;
+    if (/\.(jpg|jpeg)$/i.test(this.src)) {
+      this.src = this.src.replace(/\.(jpg|jpeg)$/i, ".png");
+      this.onerror = function () {
+        this.style.display = "none";
+        imgWrapper.classList.add("historia-card__img-fallback");
+        imgWrapper.dataset.year = mundial.año;
+      };
+    } else {
+      this.style.display = "none";
+      imgWrapper.classList.add("historia-card__img-fallback");
+      imgWrapper.dataset.year = mundial.año;
+    }
   };
   imgWrapper.appendChild(img);
   card.appendChild(imgWrapper);
@@ -518,9 +527,18 @@ function crearTarjetaEspecial(data, tipo) {
   img.alt = data.titulo;
   img.loading = "lazy";
   img.onerror = function () {
-    this.style.display = "none";
-    imgWrapper.classList.add("historia-card__img-fallback");
-    imgWrapper.dataset.icon = tipo === "stats" ? "📊" : "🏆";
+    if (/\.(jpg|jpeg)$/i.test(this.src)) {
+      this.src = this.src.replace(/\.(jpg|jpeg)$/i, ".png");
+      this.onerror = function () {
+        this.style.display = "none";
+        imgWrapper.classList.add("historia-card__img-fallback");
+        imgWrapper.dataset.icon = tipo === "stats" ? "📊" : "🏆";
+      };
+    } else {
+      this.style.display = "none";
+      imgWrapper.classList.add("historia-card__img-fallback");
+      imgWrapper.dataset.icon = tipo === "stats" ? "📊" : "🏆";
+    }
   };
   imgWrapper.appendChild(img);
   card.appendChild(imgWrapper);
