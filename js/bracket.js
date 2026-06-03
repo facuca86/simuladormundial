@@ -3,10 +3,6 @@ import { saveResults, loadResults } from "./storage.js";
 import { BEST_THIRDS_COMBINATIONS } from "./combinations.js";
 
 // ─── Estructura del cuadro final FIFA 2026 ────────────────────────────────
-// Cada ronda define pares de partidos que alimentan el siguiente.
-// seedHome / seedAway: etiqueta de clasificación (ej. "1A", "2B", "3ABCDF")
-// Los ganadores se propagan automáticamente cuando se ingresan resultados.
-
 const ROUNDS = [
   {
     id: "r32",
@@ -73,7 +69,6 @@ const ROUNDS = [
 
 const THIRD_PLACE = { id: "third_1", seedHome: "P sf_1", seedAway: "P sf_2", date: "18 jul", venue: "Miami" };
 
-// Matches in r32 where the away team is a best-third; key = matchId, value = home seed (e.g. "1E")
 const R32_THIRD_MATCHES = {
   r32_1:  "1E",
   r32_2:  "1I",
@@ -86,12 +81,10 @@ const R32_THIRD_MATCHES = {
 };
 
 // ─── Estado del cuadro ───────────────────────────────────────────────────
-// bracketTeams[matchId] = { home: teamCode|null, away: teamCode|null }
-// bracketResults[matchId] = { home: "", away: "" }
-// resolvedThirdLabels[matchId] = specific third seed label (e.g. "3E") or null
 const bracketTeams = {};
 const bracketResults = {};
 const resolvedThirdLabels = {};
+let lastChampionCode = null;
 
 function loadBracketState() {
   const saved = loadResults("bracket");
@@ -102,18 +95,15 @@ function saveBracketState() {
   saveResults("bracket", bracketResults);
 }
 
-// ─── Mapeo de seed de grupo → equipo clasificado ──────────────────────────
-// qualified = { A: [row0, row1, ...], B: [...], ... }  (sorted standings)
 function resolveGroupSeed(seed, qualified) {
   if (!qualified) return null;
-  // seed like "1A", "2B"
   const posMatch = seed.match(/^(\d)([A-L])$/);
   if (posMatch) {
     const pos = parseInt(posMatch[1]) - 1;
     const grp = posMatch[2];
     const rows = qualified[grp];
     if (!rows || rows.length < pos + 1) return null;
-    if (rows[pos].pj === 0) return null; // no games played
+    if (rows[pos].pj === 0) return null;
     return rows[pos].team;
   }
   return null;
@@ -121,7 +111,6 @@ function resolveGroupSeed(seed, qualified) {
 
 // ─── Propagar ganadores a través del cuadro ──────────────────────────────
 function propagateWinners() {
-  // Build a map matchId -> winner team
   const winners = {};
   const losers = {};
 
@@ -141,22 +130,16 @@ function propagateWinners() {
     }
   }
 
-  // Fill next-round teams from winners
   for (const round of ROUNDS) {
     for (const m of round.matches) {
       const hSrc = m.seedHome.match(/^W (.+)$/);
       const aSrc = m.seedAway.match(/^W (.+)$/);
       if (!bracketTeams[m.id]) bracketTeams[m.id] = { home: null, away: null };
-      if (hSrc) {
-        bracketTeams[m.id].home = winners[hSrc[1]] || null;
-      }
-      if (aSrc) {
-        bracketTeams[m.id].away = winners[aSrc[1]] || null;
-      }
+      if (hSrc) bracketTeams[m.id].home = winners[hSrc[1]] || null;
+      if (aSrc) bracketTeams[m.id].away = winners[aSrc[1]] || null;
     }
   }
 
-  // Third place
   if (!bracketTeams[THIRD_PLACE.id]) bracketTeams[THIRD_PLACE.id] = { home: null, away: null };
   const hSrc = THIRD_PLACE.seedHome.match(/^P (.+)$/);
   const aSrc = THIRD_PLACE.seedAway.match(/^P (.+)$/);
@@ -164,16 +147,13 @@ function propagateWinners() {
   if (aSrc) bracketTeams[THIRD_PLACE.id].away = losers[aSrc[1]] || null;
 }
 
-// ─── Obtener combinación de cruces según los mejores terceros clasificados ──
 function getCurrentCombination() {
   const key = localStorage.getItem("worldcup2026_best_thirds_groups") || "";
   return BEST_THIRDS_COMBINATIONS[key] || null;
 }
 
-// ─── Actualizar seeds de grupos en r32 ──────────────────────────────────
 export function refreshBracketSeeds(qualified) {
   const combination = getCurrentCombination();
-
   const r32 = ROUNDS[0];
   for (const m of r32.matches) {
     if (!bracketTeams[m.id]) bracketTeams[m.id] = { home: null, away: null };
@@ -193,6 +173,7 @@ export function refreshBracketSeeds(qualified) {
   }
   propagateWinners();
   renderBracketTeams();
+  updateChampion();
 }
 
 // ─── Construir DOM del cuadro ────────────────────────────────────────────
@@ -202,7 +183,6 @@ export function buildBracket(container, qualified) {
   bracketRoot = container;
   loadBracketState();
 
-  // Seed initial group teams
   const combination = getCurrentCombination();
   const r32 = ROUNDS[0];
   for (const m of r32.matches) {
@@ -219,27 +199,57 @@ export function buildBracket(container, qualified) {
   }
   propagateWinners();
 
+  // Scrollable outer wrapper
+  const scrollWrapper = document.createElement("div");
+  scrollWrapper.className = "bracket-scroll";
+
+  // Main bracket wrapper: left | center | right
   const wrapper = document.createElement("div");
-  wrapper.className = "bracket-scroll";
+  wrapper.className = "bracket-wrapper";
 
-  const inner = document.createElement("div");
-  inner.className = "bracket-inner";
+  // ── LEFT SIDE: R32[0-7], R16[0-3], QF[0-1], SF[0] ───────────────────
+  const leftSide = document.createElement("div");
+  leftSide.className = "bracket-side bracket-side--left";
+  leftSide.appendChild(buildHalfColumn(ROUNDS[0], 0, 8, false, "left"));
+  leftSide.appendChild(buildHalfColumn(ROUNDS[1], 0, 4, true,  "left"));
+  leftSide.appendChild(buildHalfColumn(ROUNDS[2], 0, 2, true,  "left"));
+  leftSide.appendChild(buildHalfColumn(ROUNDS[3], 0, 1, true,  "left"));
 
-  for (let ri = 0; ri < ROUNDS.length; ri++) {
-    inner.appendChild(buildRoundColumn(ROUNDS[ri], ri > 0));
+  // ── CENTER: Trophy + Final ───────────────────────────────────────────
+  const centerCol = buildCenterColumn();
+
+  // ── RIGHT SIDE: SF[1], QF[2-3], R16[4-7], R32[8-15] ─────────────────
+  // Columns ordered closest-to-center first (SF → QF → R16 → R32)
+  const rightSide = document.createElement("div");
+  rightSide.className = "bracket-side bracket-side--right";
+  rightSide.appendChild(buildHalfColumn(ROUNDS[3], 1, 2, true,  "right"));
+  rightSide.appendChild(buildHalfColumn(ROUNDS[2], 2, 4, true,  "right"));
+  rightSide.appendChild(buildHalfColumn(ROUNDS[1], 4, 8, true,  "right"));
+  rightSide.appendChild(buildHalfColumn(ROUNDS[0], 8, 16, false, "right"));
+
+  wrapper.appendChild(leftSide);
+  wrapper.appendChild(centerCol);
+  wrapper.appendChild(rightSide);
+
+  scrollWrapper.appendChild(wrapper);
+  container.appendChild(scrollWrapper);
+
+  // Champion banner (fixed at page bottom, created once)
+  if (!document.getElementById("champion-banner")) {
+    const banner = document.createElement("div");
+    banner.id = "champion-banner";
+    banner.className = "champion-banner";
+    document.body.appendChild(banner);
   }
 
-  // Third place column alongside final
-  const thirdCol = buildThirdPlaceColumn();
-  inner.appendChild(thirdCol);
-
-  wrapper.appendChild(inner);
-  container.appendChild(wrapper);
+  updateChampion();
 }
 
-function buildRoundColumn(round, hasIncoming = false) {
+// Build a round column using only matches[startIdx..endIdx)
+function buildHalfColumn(round, startIdx, endIdx, hasIncoming, side) {
   const col = document.createElement("div");
   col.className = "bracket-round" + (hasIncoming ? " bracket-round--has-incoming" : "");
+  if (side === "right") col.classList.add("bracket-round--right");
   col.dataset.round = round.id;
 
   const label = document.createElement("div");
@@ -250,16 +260,15 @@ function buildRoundColumn(round, hasIncoming = false) {
   const matchesWrap = document.createElement("div");
   matchesWrap.className = "bracket-matches";
 
-  // Group matches into pairs for connector lines
-  for (let i = 0; i < round.matches.length; i += 2) {
+  const matches = round.matches.slice(startIdx, endIdx);
+  for (let i = 0; i < matches.length; i += 2) {
     const pair = document.createElement("div");
-    const hasPair = !!round.matches[i + 1];
+    const hasPair = !!matches[i + 1];
     pair.className = "bracket-pair" + (hasPair ? "" : " bracket-pair--single");
+    if (side === "right") pair.classList.add("bracket-pair--right");
 
-    pair.appendChild(buildMatchBox(round.matches[i]));
-    if (hasPair) {
-      pair.appendChild(buildMatchBox(round.matches[i + 1]));
-    }
+    pair.appendChild(buildMatchBox(matches[i]));
+    if (hasPair) pair.appendChild(buildMatchBox(matches[i + 1]));
 
     matchesWrap.appendChild(pair);
   }
@@ -268,24 +277,32 @@ function buildRoundColumn(round, hasIncoming = false) {
   return col;
 }
 
-function buildThirdPlaceColumn() {
+function buildCenterColumn() {
   const col = document.createElement("div");
-  col.className = "bracket-round bracket-round--side";
+  col.className = "bracket-center";
 
-  const label = document.createElement("div");
-  label.className = "bracket-round__label";
-  label.textContent = "3.er puesto";
-  col.appendChild(label);
+  const trophyDiv = document.createElement("div");
+  trophyDiv.className = "bracket-center__trophy";
+  const img = document.createElement("img");
+  img.src = "trophy.png";
+  img.alt = "Trofeo Mundial";
+  trophyDiv.appendChild(img);
+  col.appendChild(trophyDiv);
 
-  const wrap = document.createElement("div");
-  wrap.className = "bracket-matches";
+  const finalWrap = document.createElement("div");
+  finalWrap.className = "bracket-center__final";
+  const finalLabel = document.createElement("div");
+  finalLabel.className = "bracket-round__label";
+  finalLabel.textContent = "Final";
+  finalWrap.appendChild(finalLabel);
+  finalWrap.appendChild(buildMatchBox(ROUNDS[4].matches[0]));
+  col.appendChild(finalWrap);
 
-  const pair = document.createElement("div");
-  pair.className = "bracket-pair bracket-pair--single";
-  pair.appendChild(buildMatchBox(THIRD_PLACE));
-  wrap.appendChild(pair);
+  const champDiv = document.createElement("div");
+  champDiv.id = "champion-display";
+  champDiv.className = "bracket-center__champion";
+  col.appendChild(champDiv);
 
-  col.appendChild(wrap);
   return col;
 }
 
@@ -357,9 +374,7 @@ function renderBracketTeams() {
       span.classList.remove("bracket-team__name--seed");
     } else {
       let label = match ? (side === "home" ? match.seedHome : match.seedAway) : "–";
-      if (side === "away" && resolvedThirdLabels[matchId]) {
-        label = resolvedThirdLabels[matchId];
-      }
+      if (side === "away" && resolvedThirdLabels[matchId]) label = resolvedThirdLabels[matchId];
       span.textContent = label;
       span.classList.add("bracket-team__name--seed");
     }
@@ -375,7 +390,7 @@ function findMatch(id) {
   return null;
 }
 
-// ─── Manejo de scores en el cuadro ──────────────────────────────────────
+// ─── Manejo de scores ────────────────────────────────────────────────────
 function handleBracketScore(matchId, side, input) {
   if (input.value !== "" && parseInt(input.value) < 0) input.value = "0";
   if (!bracketResults[matchId]) bracketResults[matchId] = { home: "", away: "" };
@@ -383,8 +398,8 @@ function handleBracketScore(matchId, side, input) {
   saveBracketState();
   propagateWinners();
   renderBracketTeams();
-  // Sync score inputs for propagated teams
   syncBracketScoreInputs();
+  updateChampion();
 }
 
 function syncBracketScoreInputs() {
@@ -395,4 +410,117 @@ function syncBracketScoreInputs() {
     const saved = bracketResults[mid]?.[side] ?? "";
     if (input.value !== saved) input.value = saved;
   });
+}
+
+// ─── Campeón ─────────────────────────────────────────────────────────────
+function updateChampion() {
+  const finalMatch = ROUNDS[4].matches[0];
+  const res = bracketResults[finalMatch.id];
+  let champion = null;
+
+  if (res && res.home !== "" && res.away !== "") {
+    const h = parseInt(res.home);
+    const a = parseInt(res.away);
+    const hTeam = bracketTeams[finalMatch.id]?.home;
+    const aTeam = bracketTeams[finalMatch.id]?.away;
+    if (!isNaN(h) && !isNaN(a) && hTeam && aTeam) {
+      champion = h >= a ? hTeam : aTeam;
+    }
+  }
+
+  const banner = document.getElementById("champion-banner");
+  const champDisplay = document.getElementById("champion-display");
+
+  if (champion) {
+    const teamName = champion.name || champion.code;
+
+    if (banner) {
+      banner.innerHTML =
+        `<span class="champion-banner__trophy">🏆</span>` +
+        `<span class="champion-banner__text">${champion.flag} ${teamName.toUpperCase()} CAMPEÓN!</span>` +
+        `<span class="champion-banner__trophy">🏆</span>`;
+      banner.classList.add("champion-banner--visible");
+    }
+
+    if (champDisplay) {
+      champDisplay.innerHTML =
+        `<div class="champion-center__flag">${champion.flag}</div>` +
+        `<div class="champion-center__name">${teamName.toUpperCase()}</div>` +
+        `<div class="champion-center__label">CAMPEÓN</div>`;
+      champDisplay.classList.add("champion-display--visible");
+    }
+
+    if (lastChampionCode !== champion.code) {
+      lastChampionCode = champion.code;
+      launchConfetti();
+    }
+  } else {
+    if (banner) banner.classList.remove("champion-banner--visible");
+    if (champDisplay) champDisplay.classList.remove("champion-display--visible");
+    lastChampionCode = null;
+  }
+}
+
+// ─── Confeti ─────────────────────────────────────────────────────────────
+function launchConfetti() {
+  const existing = document.getElementById("confetti-canvas");
+  if (existing) existing.remove();
+
+  const canvas = document.createElement("canvas");
+  canvas.id = "confetti-canvas";
+  document.body.appendChild(canvas);
+
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  canvas.width = W;
+  canvas.height = H;
+
+  const ctx = canvas.getContext("2d");
+  const COLORS = ["#FFD700","#FFC200","#FF6B6B","#FF4757","#2ED573","#1E90FF","#FF6348","#ECCC68","#A29BFE","#FD79A8","#FFFFFF"];
+  const TOTAL = 280;
+
+  const particles = Array.from({ length: TOTAL }, () => ({
+    x: Math.random() * W,
+    y: Math.random() * H - H,
+    color: COLORS[Math.floor(Math.random() * COLORS.length)],
+    w: Math.random() * 12 + 6,
+    h: Math.random() * 7 + 4,
+    speedY: Math.random() * 4 + 2,
+    speedX: (Math.random() - 0.5) * 3,
+    rotation: Math.random() * 360,
+    rotSpeed: (Math.random() - 0.5) * 10,
+    opacity: 1,
+  }));
+
+  let frame = 0;
+  const MAX_FRAMES = 400;
+
+  function animate() {
+    ctx.clearRect(0, 0, W, H);
+    const progress = frame / MAX_FRAMES;
+
+    particles.forEach(p => {
+      p.y += p.speedY;
+      p.x += p.speedX;
+      p.rotation += p.rotSpeed;
+      p.opacity = Math.max(0, 1 - Math.pow(progress * 1.3, 2));
+
+      ctx.save();
+      ctx.globalAlpha = p.opacity;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rotation * Math.PI / 180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    });
+
+    frame++;
+    if (frame < MAX_FRAMES) {
+      requestAnimationFrame(animate);
+    } else {
+      canvas.remove();
+    }
+  }
+
+  requestAnimationFrame(animate);
 }
