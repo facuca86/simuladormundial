@@ -7,7 +7,7 @@ import {
 } from "./fixtures.js";
 import { computeStandings } from "./standings.js";
 import { saveResults, loadResults, clearResults } from "./storage.js";
-import { buildBracket, refreshBracketSeeds } from "./bracket.js";
+import { buildBracket, refreshBracketSeeds, scaleBracketToFit } from "./bracket.js";
 import { renderThirdsView } from "./thirds.js";
 
 // ─── Configuración de grupos ───────────────────────────────────────────────
@@ -53,7 +53,7 @@ function initTabs() {
       document.getElementById("phase-groups").classList.toggle("hidden", tab !== "groups");
       document.getElementById("phase-thirds").classList.toggle("hidden", tab !== "thirds");
       document.getElementById("phase-bracket").classList.toggle("hidden", tab !== "bracket");
-      if (tab === "bracket") refreshBracketSeeds(getQualifiedTeams());
+      if (tab === "bracket") { refreshBracketSeeds(getQualifiedTeams()); scaleBracketToFit(); }
       if (tab === "thirds") renderThirdsView(document.getElementById("phase-thirds"), getQualifiedTeams());
     });
   });

@@ -464,9 +464,8 @@ td.pts {
 
 /* ── Bracket Layout ──────────────────────────────────────────────────────── */
 .bracket-scroll {
-  overflow-x: auto;
-  padding: 1.5rem 0.5rem 5rem;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
+  padding: 1.5rem 0.5rem 2rem;
 }
 
 /* Three-column bracket: left | center | right */
@@ -702,6 +701,10 @@ td.pts {
 
 .bracket-center__trophy {
   text-align: center;
+  background: #000;
+  border-radius: 12px;
+  padding: 0.5rem;
+  border: 1px solid rgba(255, 215, 0, 0.25);
 }
 
 .bracket-center__trophy img {
@@ -709,6 +712,7 @@ td.pts {
   height: auto;
   display: block;
   margin: 0 auto;
+  mix-blend-mode: screen;
   filter: drop-shadow(0 0 14px rgba(255, 215, 0, 0.65));
   animation: trophy-pulse 2.5s ease-in-out infinite alternate;
 }
