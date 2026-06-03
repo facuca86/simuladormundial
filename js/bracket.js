@@ -110,11 +110,23 @@ function resolveGroupSeed(seed, qualified) {
 }
 
 // ─── Propagar ganadores a través del cuadro ──────────────────────────────
+// Processes rounds in order so each round's teams are resolved from the
+// previous round's winners before computing that round's winners.
+// This ensures saved bracket state is fully restored on page load.
 function propagateWinners() {
   const winners = {};
   const losers = {};
 
   for (const round of ROUNDS) {
+    // Step 1: populate this round's bracketTeams from already-computed winners
+    for (const m of round.matches) {
+      if (!bracketTeams[m.id]) bracketTeams[m.id] = { home: null, away: null };
+      const hSrc = m.seedHome.match(/^W (.+)$/);
+      const aSrc = m.seedAway.match(/^W (.+)$/);
+      if (hSrc) bracketTeams[m.id].home = winners[hSrc[1]] ?? null;
+      if (aSrc) bracketTeams[m.id].away = winners[aSrc[1]] ?? null;
+    }
+    // Step 2: compute winners for this round using the now-populated teams
     for (const m of round.matches) {
       const res = bracketResults[m.id];
       if (res && res.home !== "" && res.away !== "") {
@@ -130,21 +142,11 @@ function propagateWinners() {
     }
   }
 
-  for (const round of ROUNDS) {
-    for (const m of round.matches) {
-      const hSrc = m.seedHome.match(/^W (.+)$/);
-      const aSrc = m.seedAway.match(/^W (.+)$/);
-      if (!bracketTeams[m.id]) bracketTeams[m.id] = { home: null, away: null };
-      if (hSrc) bracketTeams[m.id].home = winners[hSrc[1]] || null;
-      if (aSrc) bracketTeams[m.id].away = winners[aSrc[1]] || null;
-    }
-  }
-
   if (!bracketTeams[THIRD_PLACE.id]) bracketTeams[THIRD_PLACE.id] = { home: null, away: null };
   const hSrc = THIRD_PLACE.seedHome.match(/^P (.+)$/);
   const aSrc = THIRD_PLACE.seedAway.match(/^P (.+)$/);
-  if (hSrc) bracketTeams[THIRD_PLACE.id].home = losers[hSrc[1]] || null;
-  if (aSrc) bracketTeams[THIRD_PLACE.id].away = losers[aSrc[1]] || null;
+  if (hSrc) bracketTeams[THIRD_PLACE.id].home = losers[hSrc[1]] ?? null;
+  if (aSrc) bracketTeams[THIRD_PLACE.id].away = losers[aSrc[1]] ?? null;
 }
 
 function getCurrentCombination() {
@@ -243,6 +245,21 @@ export function buildBracket(container, qualified) {
   }
 
   updateChampion();
+
+  window.addEventListener("resize", scaleBracketToFit);
+}
+
+export function scaleBracketToFit() {
+  const scroll = bracketRoot?.querySelector(".bracket-scroll");
+  const wrapper = bracketRoot?.querySelector(".bracket-wrapper");
+  if (!scroll || !wrapper) return;
+
+  wrapper.style.zoom = "";
+  const naturalW = wrapper.scrollWidth;
+  const availableW = scroll.clientWidth;
+  if (naturalW > availableW) {
+    wrapper.style.zoom = String(availableW / naturalW);
+  }
 }
 
 // Build a round column using only matches[startIdx..endIdx)
