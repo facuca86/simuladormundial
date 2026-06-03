@@ -58,7 +58,7 @@ body {
 
 /* ── Layout principal ──────────────────────────────────────────────────── */
 .main-container {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 2rem auto;
   padding: 0 1rem 3rem;
 }
@@ -462,34 +462,39 @@ td.pts {
   text-transform: uppercase;
 }
 
-/* ── Bracket ─────────────────────────────────────────────────────────────── */
+/* ── Bracket Layout ──────────────────────────────────────────────────────── */
 .bracket-scroll {
   overflow-x: auto;
-  padding: 1.5rem 1rem 2rem;
+  padding: 1.5rem 0.5rem 5rem;
+  -webkit-overflow-scrolling: touch;
 }
 
-.bracket-inner {
+/* Three-column bracket: left | center | right */
+.bracket-wrapper {
   display: flex;
-  gap: 28px;
-  min-width: max-content;
   align-items: stretch;
+  min-width: max-content;
+  gap: 0;
 }
 
+/* Each side is a row of round columns */
+.bracket-side {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 28px;
+}
+
+/* ── Round column ────────────────────────────────────────────────────────── */
 .bracket-round {
   display: flex;
   flex-direction: column;
-  min-width: 190px;
-  max-width: 210px;
-}
-
-.bracket-round--side {
-  margin-left: 1.5rem;
-  border-left: 2px dashed var(--border);
-  padding-left: 1.5rem;
+  min-width: 160px;
+  max-width: 180px;
 }
 
 .bracket-round__label {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -510,7 +515,9 @@ td.pts {
   flex: 1;
 }
 
-/* Each pair of matches: connector lines via borders */
+/* ── Pair connectors (LEFT side — exit right) ────────────────────────────── */
+
+/* Pair of matches */
 .bracket-pair {
   display: flex;
   flex-direction: column;
@@ -519,8 +526,8 @@ td.pts {
   justify-content: space-around;
 }
 
-/* Vertical bar connecting both match centers (25%→75% of pair height) */
-.bracket-pair:not(.bracket-pair--single)::after {
+/* Vertical bar on RIGHT edge, connecting both match midpoints */
+.bracket-side--left .bracket-pair:not(.bracket-pair--single)::after {
   content: "";
   position: absolute;
   right: 0;
@@ -531,8 +538,8 @@ td.pts {
   pointer-events: none;
 }
 
-/* Horizontal exit at pair midpoint going right into the column gap */
-.bracket-pair:not(.bracket-pair--single)::before {
+/* Horizontal exit going RIGHT from pair midpoint */
+.bracket-side--left .bracket-pair:not(.bracket-pair--single)::before {
   content: "";
   position: absolute;
   right: -28px;
@@ -543,32 +550,9 @@ td.pts {
   pointer-events: none;
 }
 
-.bracket-match {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  margin: 0 0 0 0;
-  position: relative;
-  flex: none;
-}
-
-/* R32 pairs are tight (no space-around room) — keep connected look there */
-[data-round="r32"] .bracket-pair > .bracket-match:first-child {
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-  border-bottom-color: transparent;
-  margin-bottom: 0;
-}
-
-[data-round="r32"] .bracket-pair > .bracket-match:last-child {
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-  border-top-color: transparent;
-}
-
-/* Horizontal incoming line entering match from left gap */
-.bracket-round--has-incoming .bracket-pair > .bracket-match:first-child::before,
-.bracket-round--has-incoming .bracket-pair > .bracket-match:last-child::before {
+/* Horizontal incoming line from LEFT */
+.bracket-side--left .bracket-round--has-incoming .bracket-pair > .bracket-match:first-child::before,
+.bracket-side--left .bracket-round--has-incoming .bracket-pair > .bracket-match:last-child::before {
   content: "";
   position: absolute;
   left: -28px;
@@ -579,17 +563,73 @@ td.pts {
   pointer-events: none;
 }
 
-/* Pair wrapper: spacing between pairs */
-.bracket-matches .bracket-pair {
-  margin-bottom: 0;
+/* ── Pair connectors (RIGHT side — exit left, mirrored) ─────────────────── */
+
+/* Vertical bar on LEFT edge */
+.bracket-side--right .bracket-pair:not(.bracket-pair--single)::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 25%;
+  bottom: 25%;
+  width: 1px;
+  background: var(--border);
+  pointer-events: none;
 }
 
+/* Horizontal exit going LEFT from pair midpoint */
+.bracket-side--right .bracket-pair:not(.bracket-pair--single)::before {
+  content: "";
+  position: absolute;
+  left: -28px;
+  top: calc(50% - 0.5px);
+  width: 28px;
+  height: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+
+/* Horizontal incoming line from RIGHT */
+.bracket-side--right .bracket-round--has-incoming .bracket-pair > .bracket-match:first-child::before,
+.bracket-side--right .bracket-round--has-incoming .bracket-pair > .bracket-match:last-child::before {
+  content: "";
+  position: absolute;
+  right: -28px;
+  left: auto;
+  top: 50%;
+  width: 28px;
+  height: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+
+/* ── Match box ──────────────────────────────────────────────────────────── */
+.bracket-match {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  position: relative;
+  flex: none;
+}
+
+/* R32 pairs — tight, connected look */
+[data-round="r32"] .bracket-pair > .bracket-match:first-child {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: transparent;
+}
+
+[data-round="r32"] .bracket-pair > .bracket-match:last-child {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top-color: transparent;
+}
 
 .bracket-match__info {
-  font-size: 0.6rem;
+  font-size: 0.58rem;
   color: var(--text-muted);
   text-align: center;
-  padding: 0.3rem 0.5rem 0.15rem;
+  padding: 0.25rem 0.4rem 0.12rem;
   text-transform: uppercase;
   letter-spacing: 0.4px;
   background: #0d1525;
@@ -600,16 +640,16 @@ td.pts {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.35rem 0.5rem;
+  padding: 0.3rem 0.45rem;
   border-bottom: 1px solid var(--border);
-  gap: 0.4rem;
-  min-height: 32px;
+  gap: 0.35rem;
+  min-height: 30px;
 }
 
 .bracket-team:last-child { border-bottom: none; }
 
 .bracket-team__name {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
   color: var(--text);
   flex: 1;
@@ -621,14 +661,14 @@ td.pts {
 .bracket-team__name--seed {
   color: var(--text-muted);
   font-weight: 500;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
 }
 
 .bracket-score {
-  width: 36px;
-  height: 26px;
+  width: 34px;
+  height: 24px;
   text-align: center;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 700;
   background: var(--bg);
   color: var(--text);
@@ -646,6 +686,156 @@ td.pts {
 .bracket-score:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(30,144,255,0.2);
+}
+
+/* ── Center column: Trophy + Final ──────────────────────────────────────── */
+.bracket-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 210px;
+  padding: 0 12px;
+  gap: 0.5rem;
+}
+
+.bracket-center__trophy {
+  text-align: center;
+}
+
+.bracket-center__trophy img {
+  width: 110px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  filter: drop-shadow(0 0 14px rgba(255, 215, 0, 0.65));
+  animation: trophy-pulse 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes trophy-pulse {
+  from { filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.4)); }
+  to   { filter: drop-shadow(0 0 22px rgba(255, 215, 0, 0.85)); }
+}
+
+.bracket-center__final {
+  width: 100%;
+}
+
+.bracket-center__final .bracket-round__label {
+  font-size: 0.72rem;
+  color: #FFD700;
+}
+
+.bracket-center__final .bracket-match {
+  border-color: rgba(255, 215, 0, 0.4);
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.15);
+}
+
+/* Champion within center */
+.bracket-center__champion {
+  width: 100%;
+  text-align: center;
+  padding: 0.75rem 0.25rem 0.5rem;
+  display: none;
+}
+
+.bracket-center__champion.champion-display--visible {
+  display: block;
+  animation: champion-appear 0.5s ease-out;
+}
+
+@keyframes champion-appear {
+  from { opacity: 0; transform: scale(0.8); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.champion-center__flag {
+  font-size: 2.8rem;
+  line-height: 1;
+  margin-bottom: 0.3rem;
+}
+
+.champion-center__name {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #FFD700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 0.15rem;
+  text-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+  animation: champion-glow 1.5s ease-in-out infinite alternate;
+}
+
+.champion-center__label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--accent2);
+  text-transform: uppercase;
+  letter-spacing: 4px;
+}
+
+@keyframes champion-glow {
+  from { text-shadow: 0 0 6px rgba(255, 215, 0, 0.4); }
+  to   { text-shadow: 0 0 20px rgba(255, 215, 0, 0.9); }
+}
+
+/* ── Champion banner (fixed at page bottom) ──────────────────────────────── */
+.champion-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, #0d1420 0%, #1a2a4a 50%, #0d1420 100%);
+  border-top: 3px solid #FFD700;
+  padding: 0.85rem 1.5rem;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  z-index: 1000;
+  box-shadow: 0 -6px 28px rgba(255, 215, 0, 0.35);
+}
+
+.champion-banner.champion-banner--visible {
+  display: flex;
+  animation: banner-slide-up 0.4s ease-out;
+}
+
+@keyframes banner-slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.champion-banner__trophy {
+  font-size: 1.6rem;
+  animation: trophy-spin 3s linear infinite;
+}
+
+@keyframes trophy-spin {
+  0%   { transform: rotate(-8deg); }
+  50%  { transform: rotate(8deg); }
+  100% { transform: rotate(-8deg); }
+}
+
+.champion-banner__text {
+  font-size: clamp(0.85rem, 2.5vw, 1.35rem);
+  font-weight: 800;
+  color: #FFD700;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  text-shadow: 0 0 14px rgba(255, 215, 0, 0.6);
+}
+
+/* ── Confetti canvas ─────────────────────────────────────────────────────── */
+#confetti-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
 }
 
 /* ── Mejores Terceros ───────────────────────────────────────────────────── */
