@@ -368,8 +368,8 @@ function buildTeamSlot(matchId, side, seedLabel) {
     nameSpan.classList.add("bracket-team__name--seed");
   }
 
-  slot.appendChild(radio);
   slot.appendChild(nameSpan);
+  slot.appendChild(radio);
   return slot;
 }
 
