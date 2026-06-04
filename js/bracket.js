@@ -249,6 +249,13 @@ export function buildBracket(container, qualified) {
 }
 
 export function scaleBracketToFit() {
+  if (window.innerWidth <= 768) {
+    // On mobile: remove any zoom and let bracket-scroll handle horizontal swipe
+    const wrapper = bracketRoot?.querySelector(".bracket-wrapper");
+    if (wrapper) wrapper.style.zoom = "";
+    return;
+  }
+
   const scroll = bracketRoot?.querySelector(".bracket-scroll");
   const wrapper = bracketRoot?.querySelector(".bracket-wrapper");
   if (!scroll || !wrapper) return;
