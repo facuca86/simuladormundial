@@ -638,10 +638,10 @@ td.pts {
 .bracket-team {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 0.3rem 0.45rem;
   border-bottom: 1px solid var(--border);
-  gap: 0.35rem;
+  gap: 0.45rem;
   min-height: 30px;
 }
 
@@ -663,28 +663,12 @@ td.pts {
   font-size: 0.65rem;
 }
 
-.bracket-score {
-  width: 34px;
-  height: 24px;
-  text-align: center;
-  font-size: 0.82rem;
-  font-weight: 700;
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  outline: none;
+.bracket-radio {
   flex-shrink: 0;
-  -moz-appearance: textfield;
-  transition: border-color 0.2s;
-}
-
-.bracket-score::-webkit-outer-spin-button,
-.bracket-score::-webkit-inner-spin-button { -webkit-appearance: none; }
-
-.bracket-score:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(30,144,255,0.2);
+  width: 14px;
+  height: 14px;
+  accent-color: #FFD700;
+  cursor: pointer;
 }
 
 /* ── Center column: Trophy + Final ──────────────────────────────────────── */
@@ -803,6 +787,10 @@ td.pts {
 .champion-banner.champion-banner--visible {
   display: flex;
   animation: banner-slide-up 0.4s ease-out;
+}
+
+.champion-banner.champion-banner--tab-hidden {
+  display: none !important;
 }
 
 @keyframes banner-slide-up {

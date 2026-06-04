@@ -85,6 +85,7 @@ const bracketTeams = {};
 const bracketResults = {};
 const resolvedThirdLabels = {};
 let lastChampionCode = null;
+let isUserAction = false;
 
 function loadBracketState() {
   const saved = loadResults("bracket");
@@ -129,14 +130,12 @@ function propagateWinners() {
     // Step 2: compute winners for this round using the now-populated teams
     for (const m of round.matches) {
       const res = bracketResults[m.id];
-      if (res && res.home !== "" && res.away !== "") {
-        const h = parseInt(res.home);
-        const a = parseInt(res.away);
+      if (res && res.winner) {
         const hTeam = bracketTeams[m.id]?.home;
         const aTeam = bracketTeams[m.id]?.away;
-        if (!isNaN(h) && !isNaN(a) && hTeam && aTeam) {
-          winners[m.id] = h >= a ? hTeam : aTeam;
-          losers[m.id] = h >= a ? aTeam : hTeam;
+        if (hTeam && aTeam) {
+          winners[m.id] = res.winner === "home" ? hTeam : aTeam;
+          losers[m.id] = res.winner === "home" ? aTeam : hTeam;
         }
       }
     }
@@ -236,11 +235,11 @@ export function buildBracket(container, qualified) {
   scrollWrapper.appendChild(wrapper);
   container.appendChild(scrollWrapper);
 
-  // Champion banner (fixed at page bottom, created once)
+  // Champion banner (fixed at page bottom, created once, hidden outside bracket tab)
   if (!document.getElementById("champion-banner")) {
     const banner = document.createElement("div");
     banner.id = "champion-banner";
-    banner.className = "champion-banner";
+    banner.className = "champion-banner champion-banner--tab-hidden";
     document.body.appendChild(banner);
   }
 
@@ -345,6 +344,16 @@ function buildTeamSlot(matchId, side, seedLabel) {
   slot.dataset.matchId = matchId;
   slot.dataset.side = side;
 
+  const radio = document.createElement("input");
+  radio.type = "radio";
+  radio.name = `match-${matchId}`;
+  radio.value = side;
+  radio.className = "bracket-radio";
+  radio.dataset.matchId = matchId;
+  radio.dataset.side = side;
+  radio.checked = bracketResults[matchId]?.winner === side;
+  radio.addEventListener("change", () => handleRadioSelection(matchId, side));
+
   const nameSpan = document.createElement("span");
   nameSpan.className = "bracket-team__name";
   nameSpan.dataset.matchId = matchId;
@@ -359,20 +368,8 @@ function buildTeamSlot(matchId, side, seedLabel) {
     nameSpan.classList.add("bracket-team__name--seed");
   }
 
-  const scoreInput = document.createElement("input");
-  scoreInput.type = "number";
-  scoreInput.min = "0";
-  scoreInput.step = "1";
-  scoreInput.className = "bracket-score";
-  scoreInput.dataset.matchId = matchId;
-  scoreInput.dataset.side = side;
-  scoreInput.placeholder = "–";
-  scoreInput.value = bracketResults[matchId]?.[side] ?? "";
-
-  scoreInput.addEventListener("input", () => handleBracketScore(matchId, side, scoreInput));
-
+  slot.appendChild(radio);
   slot.appendChild(nameSpan);
-  slot.appendChild(scoreInput);
   return slot;
 }
 
@@ -407,25 +404,25 @@ function findMatch(id) {
   return null;
 }
 
-// ─── Manejo de scores ────────────────────────────────────────────────────
-function handleBracketScore(matchId, side, input) {
-  if (input.value !== "" && parseInt(input.value) < 0) input.value = "0";
-  if (!bracketResults[matchId]) bracketResults[matchId] = { home: "", away: "" };
-  bracketResults[matchId][side] = input.value;
+// ─── Manejo de selección radio ───────────────────────────────────────────
+function handleRadioSelection(matchId, side) {
+  if (!bracketResults[matchId]) bracketResults[matchId] = {};
+  bracketResults[matchId].winner = side;
   saveBracketState();
+  isUserAction = true;
   propagateWinners();
   renderBracketTeams();
-  syncBracketScoreInputs();
+  syncBracketRadios();
   updateChampion();
+  isUserAction = false;
 }
 
-function syncBracketScoreInputs() {
+function syncBracketRadios() {
   if (!bracketRoot) return;
-  bracketRoot.querySelectorAll(".bracket-score").forEach(input => {
-    const mid = input.dataset.matchId;
-    const side = input.dataset.side;
-    const saved = bracketResults[mid]?.[side] ?? "";
-    if (input.value !== saved) input.value = saved;
+  bracketRoot.querySelectorAll(".bracket-radio").forEach(radio => {
+    const mid = radio.dataset.matchId;
+    const side = radio.dataset.side;
+    radio.checked = bracketResults[mid]?.winner === side;
   });
 }
 
@@ -435,13 +432,11 @@ function updateChampion() {
   const res = bracketResults[finalMatch.id];
   let champion = null;
 
-  if (res && res.home !== "" && res.away !== "") {
-    const h = parseInt(res.home);
-    const a = parseInt(res.away);
+  if (res && res.winner) {
     const hTeam = bracketTeams[finalMatch.id]?.home;
     const aTeam = bracketTeams[finalMatch.id]?.away;
-    if (!isNaN(h) && !isNaN(a) && hTeam && aTeam) {
-      champion = h >= a ? hTeam : aTeam;
+    if (hTeam && aTeam) {
+      champion = res.winner === "home" ? hTeam : aTeam;
     }
   }
 
@@ -469,7 +464,7 @@ function updateChampion() {
 
     if (lastChampionCode !== champion.code) {
       lastChampionCode = champion.code;
-      launchConfetti();
+      if (isUserAction) launchConfetti();
     }
   } else {
     if (banner) banner.classList.remove("champion-banner--visible");
