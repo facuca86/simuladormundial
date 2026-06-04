@@ -53,6 +53,8 @@ function initTabs() {
       btn.classList.add("tab-btn--active");
       const tab = btn.dataset.tab;
       TABS.forEach(t => document.getElementById(`phase-${t}`).classList.toggle("hidden", tab !== t));
+      const banner = document.getElementById("champion-banner");
+      if (banner) banner.classList.toggle("champion-banner--tab-hidden", tab !== "bracket");
       if (tab === "bracket") { refreshBracketSeeds(getQualifiedTeams()); scaleBracketToFit(); }
       if (tab === "thirds") renderThirdsView(document.getElementById("phase-thirds"), getQualifiedTeams());
       if (tab === "historia") renderHistoriaView(document.getElementById("phase-historia"));
