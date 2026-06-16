@@ -1,23 +1,55 @@
-// Capa de persistencia sobre localStorage.
-// Usa un prefijo común para evitar colisiones con otras apps en el mismo origen.
-// Las claves resultantes son: worldcup2026_groupA, worldcup2026_groupB, …
-// — compatibles con los datos guardados por versiones anteriores del Grupo A.
+// Persistencia con Firebase Firestore (fallback a localStorage si Firebase no está disponible).
 
 const PREFIX = "worldcup2026_";
+const USER_KEY = "worldcup2026_userId";
 
-/**
- * Guarda los resultados de un grupo.
- * @param {string} groupId  - Identificador del grupo (ej. "groupA")
- * @param {Object} results  - { [fixtureId]: { home: string, away: string } }
- */
-export function saveResults(groupId, results) {
-  localStorage.setItem(PREFIX + groupId, JSON.stringify(results));
+function getUserId() {
+  let id = localStorage.getItem(USER_KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(USER_KEY, id);
+  }
+  return id;
+}
+
+let _firebasePromise = null;
+
+function getFirebase() {
+  if (_firebasePromise) return _firebasePromise;
+  _firebasePromise = (async () => {
+    try {
+      const [{ db }, { doc, setDoc, getDoc, deleteDoc }] = await Promise.all([
+        import("./firebase_config.js"),
+        import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js")
+      ]);
+      return { db, doc, setDoc, getDoc, deleteDoc };
+    } catch {
+      return null;
+    }
+  })();
+  return _firebasePromise;
+}
+
+function firestorePath(groupId) {
+  return `usuarios/${getUserId()}/resultados/${groupId}`;
 }
 
 /**
- * Carga los resultados guardados de un grupo.
- * @param {string} groupId
- * @returns {Object} Resultados o {} si no hay datos guardados
+ * Guarda los resultados de un grupo.
+ * Persiste en localStorage de inmediato y en Firebase en segundo plano.
+ */
+export function saveResults(groupId, results) {
+  localStorage.setItem(PREFIX + groupId, JSON.stringify(results));
+  getFirebase().then(fb => {
+    if (!fb) return;
+    const { db, doc, setDoc } = fb;
+    setDoc(doc(db, firestorePath(groupId)), { data: JSON.stringify(results) }).catch(() => {});
+  });
+}
+
+/**
+ * Carga los resultados guardados de un grupo desde localStorage.
+ * @returns {Object} Resultados o {} si no hay datos
  */
 export function loadResults(groupId) {
   try {
@@ -29,9 +61,34 @@ export function loadResults(groupId) {
 }
 
 /**
- * Borra los resultados de un grupo del localStorage.
- * @param {string} groupId
+ * Borra los resultados de un grupo de localStorage y Firebase.
  */
 export function clearResults(groupId) {
   localStorage.removeItem(PREFIX + groupId);
+  getFirebase().then(fb => {
+    if (!fb) return;
+    const { db, doc, deleteDoc } = fb;
+    deleteDoc(doc(db, firestorePath(groupId))).catch(() => {});
+  });
+}
+
+/**
+ * Carga los resultados desde Firebase y los sincroniza al localStorage.
+ * Retorna null si Firebase no está disponible o no hay datos.
+ */
+export async function loadResultsFromFirebase(groupId) {
+  const fb = await getFirebase();
+  if (!fb) return null;
+  try {
+    const { db, doc, getDoc } = fb;
+    const snap = await getDoc(doc(db, firestorePath(groupId)));
+    if (snap.exists()) {
+      const results = JSON.parse(snap.data().data);
+      localStorage.setItem(PREFIX + groupId, JSON.stringify(results));
+      return results;
+    }
+  } catch {
+    // Firebase falló, se usará localStorage
+  }
+  return null;
 }
