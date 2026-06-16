@@ -1,16 +1,6 @@
 // Persistencia con Firebase Firestore (fallback a localStorage si Firebase no está disponible).
 
 const PREFIX = "worldcup2026_";
-const USER_KEY = "worldcup2026_userId";
-
-function getUserId() {
-  let id = localStorage.getItem(USER_KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(USER_KEY, id);
-  }
-  return id;
-}
 
 let _firebasePromise = null;
 
@@ -31,7 +21,8 @@ function getFirebase() {
 }
 
 function firestorePath(groupId) {
-  return `usuarios/${getUserId()}/resultados/${groupId}`;
+  // Datos compartidos: un único simulador para todos.
+  return `simulador/mundial2026/resultados/${groupId}`;
 }
 
 /**
