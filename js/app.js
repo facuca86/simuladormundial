@@ -6,7 +6,7 @@ import {
   GROUP_J_FIXTURES, GROUP_K_FIXTURES, GROUP_L_FIXTURES
 } from "./fixtures.js";
 import { computeStandings } from "./standings.js";
-import { saveResults, loadResults, clearResults } from "./storage.js";
+import { saveResults, loadResults, clearResults, loadResultsFromFirebase } from "./storage.js";
 import { buildBracket, refreshBracketSeeds, scaleBracketToFit } from "./bracket.js";
 import { renderThirdsView } from "./thirds.js";
 import { renderHistoriaView } from "./historia.js";
@@ -306,5 +306,32 @@ function formatDate(isoDate) {
   return `${day}/${month}/${year}`;
 }
 
+// ─── Sincronización con Firebase al inicio ─────────────────────────────────
+async function syncFromFirebase() {
+  for (const g of GROUPS) {
+    const fbResults = await loadResultsFromFirebase(g.id);
+    if (fbResults && Object.keys(fbResults).length > 0) {
+      state[g.id] = fbResults;
+      const article = document.getElementById(`group-${g.id}`);
+      if (article) {
+        for (const fix of g.fixtures) {
+          const saved = fbResults[fix.id] || { home: "", away: "" };
+          const hi = article.querySelector(`#h-${fix.id}`);
+          const ai = article.querySelector(`#a-${fix.id}`);
+          if (hi) hi.value = saved.home;
+          if (ai) ai.value = saved.away;
+        }
+      }
+      updateStandingsDOM(g);
+    }
+  }
+  const qualified = getQualifiedTeams();
+  refreshBracketSeeds(qualified);
+  renderThirdsView(document.getElementById("phase-thirds"), qualified);
+}
+
 // ─── Bootstrap ─────────────────────────────────────────────────────────────
-document.addEventListener("DOMContentLoaded", init);
+document.addEventListener("DOMContentLoaded", () => {
+  init();
+  syncFromFirebase().catch(() => {});
+});
