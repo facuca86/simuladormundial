@@ -40,6 +40,7 @@ function init() {
   for (const group of GROUPS) {
     grid.appendChild(buildGroupArticle(group));
   }
+  document.getElementById("phase-groups").appendChild(buildExportButton());
   buildBracket(document.getElementById("bracket-root"), getQualifiedTeams());
   renderThirdsView(document.getElementById("phase-thirds"), getQualifiedTeams());
   initTabs();
@@ -298,6 +299,100 @@ function resetGroup(group) {
   const qualified = getQualifiedTeams();
   refreshBracketSeeds(qualified);
   renderThirdsView(document.getElementById("phase-thirds"), qualified);
+}
+
+// ─── Exportación de resultados ─────────────────────────────────────────────
+function buildExportButton() {
+  const wrapper = document.createElement("div");
+  wrapper.className = "export-section";
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn-export";
+  btn.textContent = "📋 Exportar Resultados";
+  btn.addEventListener("click", exportResults);
+
+  wrapper.appendChild(btn);
+  return wrapper;
+}
+
+function exportResults() {
+  const byMatchday = {};
+
+  for (const group of GROUPS) {
+    for (const fix of group.fixtures) {
+      const result = state[group.id][fix.id];
+      const gh = result && result.home !== "" ? parseInt(result.home, 10) : null;
+      const ga = result && result.away !== "" ? parseInt(result.away, 10) : null;
+      const hasResult = gh !== null && ga !== null && !isNaN(gh) && !isNaN(ga);
+
+      if (!byMatchday[fix.matchday]) byMatchday[fix.matchday] = [];
+      byMatchday[fix.matchday].push({ groupLabel: group.label, fix, gh, ga, hasResult });
+    }
+  }
+
+  const matchdays = Object.keys(byMatchday).map(Number).sort((a, b) => a - b);
+
+  const lines = [];
+  for (const day of matchdays) {
+    lines.push(`FECHA ${day}`);
+    const matches = byMatchday[day].sort((a, b) =>
+      a.groupLabel.localeCompare(b.groupLabel) || a.fix.id - b.fix.id
+    );
+    for (const { fix, gh, ga, hasResult } of matches) {
+      const home = TEAMS[fix.home];
+      const away = TEAMS[fix.away];
+      if (hasResult) {
+        lines.push(`${home.name} ${gh} - ${ga} ${away.name}`);
+      } else {
+        lines.push(`${home.name} vs ${away.name}`);
+      }
+    }
+    lines.push("");
+  }
+
+  showExportModal(lines.join("\n").trimEnd());
+}
+
+function showExportModal(text) {
+  const existing = document.getElementById("export-modal");
+  if (existing) existing.remove();
+
+  const overlay = document.createElement("div");
+  overlay.id = "export-modal";
+  overlay.className = "export-modal-overlay";
+
+  overlay.innerHTML = `
+    <div class="export-modal">
+      <div class="export-modal__header">
+        <h3>Resultados exportados</h3>
+        <button class="export-modal__close" aria-label="Cerrar">✕</button>
+      </div>
+      <textarea class="export-modal__text" readonly>${text}</textarea>
+      <div class="export-modal__actions">
+        <button class="btn-copy">📋 Copiar al portapapeles</button>
+      </div>
+    </div>
+  `;
+
+  overlay.querySelector(".export-modal__close").addEventListener("click", () => overlay.remove());
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+
+  const copyBtn = overlay.querySelector(".btn-copy");
+  copyBtn.addEventListener("click", () => {
+    navigator.clipboard.writeText(text).then(() => {
+      copyBtn.textContent = "✅ Copiado";
+      setTimeout(() => { copyBtn.textContent = "📋 Copiar al portapapeles"; }, 2000);
+    }).catch(() => {
+      const ta = overlay.querySelector(".export-modal__text");
+      ta.select();
+      document.execCommand("copy");
+      copyBtn.textContent = "✅ Copiado";
+      setTimeout(() => { copyBtn.textContent = "📋 Copiar al portapapeles"; }, 2000);
+    });
+  });
+
+  document.body.appendChild(overlay);
 }
 
 // ─── Utilidades ────────────────────────────────────────────────────────────
