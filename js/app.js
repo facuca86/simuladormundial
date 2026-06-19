@@ -322,22 +322,16 @@ function exportResults() {
   for (const group of GROUPS) {
     for (const fix of group.fixtures) {
       const result = state[group.id][fix.id];
-      if (!result || result.home === "" || result.away === "") continue;
-      const gh = parseInt(result.home, 10);
-      const ga = parseInt(result.away, 10);
-      if (isNaN(gh) || isNaN(ga)) continue;
+      const gh = result && result.home !== "" ? parseInt(result.home, 10) : null;
+      const ga = result && result.away !== "" ? parseInt(result.away, 10) : null;
+      const hasResult = gh !== null && ga !== null && !isNaN(gh) && !isNaN(ga);
 
       if (!byMatchday[fix.matchday]) byMatchday[fix.matchday] = [];
-      byMatchday[fix.matchday].push({ groupLabel: group.label, fix, gh, ga });
+      byMatchday[fix.matchday].push({ groupLabel: group.label, fix, gh, ga, hasResult });
     }
   }
 
   const matchdays = Object.keys(byMatchday).map(Number).sort((a, b) => a - b);
-
-  if (matchdays.length === 0) {
-    showExportModal("No hay resultados cargados todavía.");
-    return;
-  }
 
   const lines = [];
   for (const day of matchdays) {
@@ -345,10 +339,14 @@ function exportResults() {
     const matches = byMatchday[day].sort((a, b) =>
       a.groupLabel.localeCompare(b.groupLabel) || a.fix.id - b.fix.id
     );
-    for (const { fix, gh, ga } of matches) {
+    for (const { fix, gh, ga, hasResult } of matches) {
       const home = TEAMS[fix.home];
       const away = TEAMS[fix.away];
-      lines.push(`${home.name} ${gh} - ${ga} ${away.name}`);
+      if (hasResult) {
+        lines.push(`${home.name} ${gh} - ${ga} ${away.name}`);
+      } else {
+        lines.push(`${home.name} vs ${away.name}`);
+      }
     }
     lines.push("");
   }
