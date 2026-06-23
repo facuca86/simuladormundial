@@ -1,6 +1,29 @@
 import { TEAMS } from "./teams.js";
 
 /**
+ * Calcula y ordena los 12 terceros de todos los grupos.
+ * Criterios: PTS → DG → GF (igual que ranking FIFA de mejores terceros).
+ * @param {Object[]} groups  - Array de grupos con {id, teams, fixtures}
+ * @param {Object}   state   - Mapa { groupId: { fixtureId: {home, away} } }
+ * @returns {Object[]} Los 12 terceros ordenados de mejor a peor
+ */
+export function computeBestThirds(groups, state) {
+  const thirds = [];
+  for (const group of groups) {
+    const rows = computeStandings(group.teams, group.fixtures, state[group.id] || {});
+    if (rows.length >= 3) {
+      thirds.push({ groupLabel: group.label, ...rows[2] });
+    }
+  }
+  thirds.sort((a, b) => {
+    if (b.pts !== a.pts) return b.pts - a.pts;
+    if (b.dg !== a.dg) return b.dg - a.dg;
+    return b.gf - a.gf;
+  });
+  return thirds;
+}
+
+/**
  * Genera la tabla de posiciones a partir de los resultados ingresados.
  * Aplica desempates oficiales FIFA: PTS → H2H (pts, DG, GF) → DG general → GF general.
  * @param {string[]} teamCodes  - Códigos de los equipos del grupo
@@ -78,7 +101,7 @@ export function canStillQualify(teamCode, teamCodes, fixtures, results) {
 
   for (const scenario of _generateScenarios(remaining)) {
     const standings = computeStandings(teamCodes, fixtures, { ...results, ...scenario });
-    if (standings.findIndex(r => r.team.code === teamCode) < 2) return true;
+    if (standings.findIndex(r => r.team.code === teamCode) < 3) return true;
   }
   return false;
 }

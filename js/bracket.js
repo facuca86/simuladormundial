@@ -7,13 +7,13 @@ const VENUE_UTC = {
   "Boston":           -4,
   "New York/NJ":      -4,
   "Los Ángeles":      -7,
-  "Monterrey":        -5,
+  "Monterrey":        -6,
   "Toronto":          -4,
   "San Francisco":    -7,
   "Seattle":          -7,
   "Houston":          -5,
   "Dallas":           -5,
-  "Ciudad de México": -5,
+  "Ciudad de México": -6,
   "Atlanta":          -4,
   "Miami":            -4,
   "Kansas City":      -5,
@@ -35,45 +35,45 @@ const ROUNDS = [
     id: "r32",
     label: "Dieciseisavos de final",
     matches: [
-      { id: "r32_1",  seedHome: "1E",          seedAway: "3A/B/C/D/F", date: "29 jun", venue: "Boston",          time: "20:00" },
-      { id: "r32_2",  seedHome: "1I",          seedAway: "3C/D/F/G/H", date: "30 jun", venue: "New York/NJ",     time: "20:00" },
-      { id: "r32_3",  seedHome: "2A",          seedAway: "2B",         date: "28 jun", venue: "Los Ángeles",     time: "17:00" },
-      { id: "r32_4",  seedHome: "1F",          seedAway: "2C",         date: "29 jun", venue: "Monterrey",       time: "20:00" },
-      { id: "r32_5",  seedHome: "2K",          seedAway: "2L",         date: "2 jul",  venue: "Toronto",         time: "20:00" },
-      { id: "r32_6",  seedHome: "1H",          seedAway: "2J",         date: "2 jul",  venue: "Los Ángeles",     time: "20:00" },
+      { id: "r32_1",  seedHome: "1E",          seedAway: "3A/B/C/D/F", date: "29 jun", venue: "Boston",          time: "16:30" },
+      { id: "r32_2",  seedHome: "1I",          seedAway: "3C/D/F/G/H", date: "30 jun", venue: "New York/NJ",     time: "17:00" },
+      { id: "r32_3",  seedHome: "2A",          seedAway: "2B",         date: "28 jun", venue: "Los Ángeles",     time: "12:00" },
+      { id: "r32_4",  seedHome: "1F",          seedAway: "2C",         date: "29 jun", venue: "Monterrey",       time: "19:00" },
+      { id: "r32_5",  seedHome: "2K",          seedAway: "2L",         date: "2 jul",  venue: "Toronto",         time: "19:00" },
+      { id: "r32_6",  seedHome: "1H",          seedAway: "2J",         date: "2 jul",  venue: "Los Ángeles",     time: "12:00" },
       { id: "r32_7",  seedHome: "1D",          seedAway: "3B/E/F/I/J", date: "1 jul",  venue: "San Francisco",   time: "17:00" },
-      { id: "r32_8",  seedHome: "1G",          seedAway: "3A/E/H/I/J", date: "1 jul",  venue: "Seattle",         time: "20:00" },
-      { id: "r32_9",  seedHome: "1C",          seedAway: "2F",         date: "29 jun", venue: "Houston",         time: "20:00" },
-      { id: "r32_10", seedHome: "2E",          seedAway: "2I",         date: "30 jun", venue: "Dallas",          time: "17:00" },
-      { id: "r32_11", seedHome: "1A",          seedAway: "3C/E/F/H/I", date: "30 jun", venue: "Ciudad de México",time: "17:00" },
-      { id: "r32_12", seedHome: "1L",          seedAway: "3E/H/I/J/K", date: "1 jul",  venue: "Atlanta",         time: "20:00" },
-      { id: "r32_13", seedHome: "1J",          seedAway: "2H",         date: "3 jul",  venue: "Miami",           time: "20:00" },
-      { id: "r32_14", seedHome: "2D",          seedAway: "2G",         date: "3 jul",  venue: "Dallas",          time: "20:00" },
+      { id: "r32_8",  seedHome: "1G",          seedAway: "3A/E/H/I/J", date: "1 jul",  venue: "Seattle",         time: "13:00" },
+      { id: "r32_9",  seedHome: "1C",          seedAway: "2F",         date: "29 jun", venue: "Houston",         time: "12:00" },
+      { id: "r32_10", seedHome: "2E",          seedAway: "2I",         date: "30 jun", venue: "Dallas",          time: "12:00" },
+      { id: "r32_11", seedHome: "1A",          seedAway: "3C/E/F/H/I", date: "30 jun", venue: "Ciudad de México",time: "19:00" },
+      { id: "r32_12", seedHome: "1L",          seedAway: "3E/H/I/J/K", date: "1 jul",  venue: "Atlanta",         time: "12:00" },
+      { id: "r32_13", seedHome: "1J",          seedAway: "2H",         date: "3 jul",  venue: "Miami",           time: "18:00" },
+      { id: "r32_14", seedHome: "2D",          seedAway: "2G",         date: "3 jul",  venue: "Dallas",          time: "13:00" },
       { id: "r32_15", seedHome: "1B",          seedAway: "3E/F/G/I/J", date: "2 jul",  venue: "Vancouver",       time: "20:00" },
-      { id: "r32_16", seedHome: "1K",          seedAway: "3D/E/I/J/L", date: "3 jul",  venue: "Kansas City",     time: "20:00" },
+      { id: "r32_16", seedHome: "1K",          seedAway: "3D/E/I/J/L", date: "3 jul",  venue: "Kansas City",     time: "20:30" },
     ]
   },
   {
     id: "r16",
     label: "Octavos de final",
     matches: [
-      { id: "r16_1", seedHome: "W r32_1",  seedAway: "W r32_2",  date: "4 jul",  venue: "Filadelfia",       time: "20:00" },
-      { id: "r16_2", seedHome: "W r32_3",  seedAway: "W r32_4",  date: "4 jul",  venue: "Houston",          time: "20:00" },
-      { id: "r16_3", seedHome: "W r32_5",  seedAway: "W r32_6",  date: "6 jul",  venue: "Dallas",           time: "20:00" },
-      { id: "r16_4", seedHome: "W r32_7",  seedAway: "W r32_8",  date: "6 jul",  venue: "Seattle",          time: "20:00" },
-      { id: "r16_5", seedHome: "W r32_9",  seedAway: "W r32_10", date: "5 jul",  venue: "New York/NJ",      time: "20:00" },
-      { id: "r16_6", seedHome: "W r32_11", seedAway: "W r32_12", date: "5 jul",  venue: "Ciudad de México", time: "20:00" },
-      { id: "r16_7", seedHome: "W r32_13", seedAway: "W r32_14", date: "7 jul",  venue: "Atlanta",          time: "20:00" },
-      { id: "r16_8", seedHome: "W r32_15", seedAway: "W r32_16", date: "7 jul",  venue: "Vancouver",        time: "20:00" },
+      { id: "r16_1", seedHome: "W r32_1",  seedAway: "W r32_2",  date: "4 jul",  venue: "Filadelfia",       time: "17:00" },
+      { id: "r16_2", seedHome: "W r32_3",  seedAway: "W r32_4",  date: "4 jul",  venue: "Houston",          time: "12:00" },
+      { id: "r16_3", seedHome: "W r32_5",  seedAway: "W r32_6",  date: "6 jul",  venue: "Dallas",           time: "14:00" },
+      { id: "r16_4", seedHome: "W r32_7",  seedAway: "W r32_8",  date: "6 jul",  venue: "Seattle",          time: "17:00" },
+      { id: "r16_5", seedHome: "W r32_9",  seedAway: "W r32_10", date: "5 jul",  venue: "New York/NJ",      time: "16:00" },
+      { id: "r16_6", seedHome: "W r32_11", seedAway: "W r32_12", date: "5 jul",  venue: "Ciudad de México", time: "18:00" },
+      { id: "r16_7", seedHome: "W r32_13", seedAway: "W r32_14", date: "7 jul",  venue: "Atlanta",          time: "12:00" },
+      { id: "r16_8", seedHome: "W r32_15", seedAway: "W r32_16", date: "7 jul",  venue: "Vancouver",        time: "13:00" },
     ]
   },
   {
     id: "qf",
     label: "Cuartos de final",
     matches: [
-      { id: "qf_1", seedHome: "W r16_1", seedAway: "W r16_2", date: "9 jul",  venue: "Boston",       time: "20:00" },
-      { id: "qf_2", seedHome: "W r16_3", seedAway: "W r16_4", date: "10 jul", venue: "Los Ángeles",  time: "20:00" },
-      { id: "qf_3", seedHome: "W r16_5", seedAway: "W r16_6", date: "11 jul", venue: "Miami",        time: "20:00" },
+      { id: "qf_1", seedHome: "W r16_1", seedAway: "W r16_2", date: "9 jul",  venue: "Boston",       time: "16:00" },
+      { id: "qf_2", seedHome: "W r16_3", seedAway: "W r16_4", date: "10 jul", venue: "Los Ángeles",  time: "12:00" },
+      { id: "qf_3", seedHome: "W r16_5", seedAway: "W r16_6", date: "11 jul", venue: "Miami",        time: "17:00" },
       { id: "qf_4", seedHome: "W r16_7", seedAway: "W r16_8", date: "11 jul", venue: "Kansas City",  time: "20:00" },
     ]
   },
@@ -81,20 +81,20 @@ const ROUNDS = [
     id: "sf",
     label: "Semifinales",
     matches: [
-      { id: "sf_1", seedHome: "W qf_1", seedAway: "W qf_2", date: "14 jul", venue: "Dallas",  time: "20:00" },
-      { id: "sf_2", seedHome: "W qf_3", seedAway: "W qf_4", date: "15 jul", venue: "Atlanta", time: "20:00" },
+      { id: "sf_1", seedHome: "W qf_1", seedAway: "W qf_2", date: "14 jul", venue: "Dallas",  time: "14:00" },
+      { id: "sf_2", seedHome: "W qf_3", seedAway: "W qf_4", date: "15 jul", venue: "Atlanta", time: "15:00" },
     ]
   },
   {
     id: "final",
     label: "Final",
     matches: [
-      { id: "final_1", seedHome: "W sf_1", seedAway: "W sf_2", date: "19 jul", venue: "New York/NJ", time: "21:00" },
+      { id: "final_1", seedHome: "W sf_1", seedAway: "W sf_2", date: "19 jul", venue: "New York/NJ", time: "15:00" },
     ]
   }
 ];
 
-const THIRD_PLACE = { id: "third_1", seedHome: "P sf_1", seedAway: "P sf_2", date: "18 jul", venue: "Miami", time: "18:00" };
+const THIRD_PLACE = { id: "third_1", seedHome: "P sf_1", seedAway: "P sf_2", date: "18 jul", venue: "Miami", time: "17:00" };
 
 const R32_THIRD_MATCHES = {
   r32_1:  "1E",
