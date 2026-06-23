@@ -5,7 +5,7 @@ import {
   GROUP_G_FIXTURES, GROUP_H_FIXTURES, GROUP_I_FIXTURES,
   GROUP_J_FIXTURES, GROUP_K_FIXTURES, GROUP_L_FIXTURES
 } from "./fixtures.js";
-import { computeStandings } from "./standings.js";
+import { computeStandings, canStillQualify } from "./standings.js";
 import { saveResults, loadResults, clearResults, loadResultsFromFirebase } from "./storage.js";
 import { buildBracket, refreshBracketSeeds, scaleBracketToFit } from "./bracket.js";
 import { renderThirdsView } from "./thirds.js";
@@ -244,8 +244,11 @@ function updateStandingsDOM(group, container) {
 
   const rows = computeStandings(group.teams, group.fixtures, state[group.id]);
 
-  tbody.innerHTML = rows.map((row, idx) => `
-    <tr class="${idx < 2 ? "qualified" : ""}">
+  tbody.innerHTML = rows.map((row, idx) => {
+    const alive = canStillQualify(row.team.code, group.teams, group.fixtures, state[group.id]);
+    const cls = !alive ? "eliminated" : idx < 2 ? "qualified" : "";
+    return `
+    <tr class="${cls}">
       <td class="pos">${idx + 1}</td>
       <td class="team-cell">
         <span class="flag">${row.team.flag}</span>
@@ -260,7 +263,8 @@ function updateStandingsDOM(group, container) {
       <td>${row.dg >= 0 ? "+" : ""}${row.dg}</td>
       <td class="pts">${row.pts}</td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
 
   qualifiedList.innerHTML = rows.slice(0, 2).map((row, idx) => `
     <li>

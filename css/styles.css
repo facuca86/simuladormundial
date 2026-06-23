@@ -268,6 +268,8 @@ tbody tr {
 
 tbody tr:hover { background: rgba(255,255,255,0.03); }
 tbody tr.qualified { background-color: var(--qualified-bg); }
+tbody tr.eliminated { background-color: rgba(255, 77, 77, 0.07); }
+tbody tr.eliminated .team-name { color: #ff4d4d; }
 
 tbody td {
   padding: 0.5rem 0.4rem;
