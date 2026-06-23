@@ -78,7 +78,7 @@ export function canStillQualify(teamCode, teamCodes, fixtures, results) {
 
   for (const scenario of _generateScenarios(remaining)) {
     const standings = computeStandings(teamCodes, fixtures, { ...results, ...scenario });
-    if (standings.findIndex(r => r.team.code === teamCode) < 2) return true;
+    if (standings.findIndex(r => r.team.code === teamCode) < 3) return true;
   }
   return false;
 }
