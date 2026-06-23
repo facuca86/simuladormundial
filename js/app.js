@@ -5,7 +5,7 @@ import {
   GROUP_G_FIXTURES, GROUP_H_FIXTURES, GROUP_I_FIXTURES,
   GROUP_J_FIXTURES, GROUP_K_FIXTURES, GROUP_L_FIXTURES
 } from "./fixtures.js";
-import { computeStandings, canStillQualify } from "./standings.js";
+import { computeStandings, canStillQualify, computeBestThirds } from "./standings.js";
 import { saveResults, loadResults, clearResults, loadResultsFromFirebase } from "./storage.js";
 import { buildBracket, refreshBracketSeeds, scaleBracketToFit } from "./bracket.js";
 import { renderThirdsView } from "./thirds.js";
@@ -238,6 +238,17 @@ function buildStandingsTable(group) {
   return wrapper;
 }
 
+function isGroupStageComplete() {
+  for (const g of GROUPS) {
+    for (const fix of g.fixtures) {
+      const r = state[g.id]?.[fix.id];
+      if (!r || r.home === "" || r.away === "" ||
+          isNaN(parseInt(r.home, 10)) || isNaN(parseInt(r.away, 10))) return false;
+    }
+  }
+  return true;
+}
+
 function updateStandingsDOM(group, container) {
   // Puede recibir el wrapper recién creado o buscarlo en el DOM
   const tbody = (container || document).querySelector(`#standings-body-${group.id}`);
@@ -246,9 +257,27 @@ function updateStandingsDOM(group, container) {
 
   const rows = computeStandings(group.teams, group.fixtures, state[group.id]);
 
+  const allComplete = isGroupStageComplete();
+  let bestThirdCodes = null;
+  if (allComplete) {
+    const thirds = computeBestThirds(GROUPS, state);
+    bestThirdCodes = new Set(thirds.slice(0, 8).map(t => t.team.code));
+  }
+
   tbody.innerHTML = rows.map((row, idx) => {
-    const alive = canStillQualify(row.team.code, group.teams, group.fixtures, state[group.id]);
-    const cls = !alive ? "eliminated" : idx < 2 ? "qualified" : "";
+    let cls;
+    if (idx < 2) {
+      cls = "qualified";
+    } else if (idx === 2) {
+      if (allComplete) {
+        cls = bestThirdCodes.has(row.team.code) ? "qualified" : "eliminated";
+      } else {
+        cls = "";
+      }
+    } else {
+      const alive = canStillQualify(row.team.code, group.teams, group.fixtures, state[group.id]);
+      cls = !alive ? "eliminated" : "";
+    }
     return `
     <tr class="${cls}">
       <td class="pos">${idx + 1}</td>
