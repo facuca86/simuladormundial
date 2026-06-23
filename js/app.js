@@ -164,8 +164,10 @@ function buildMatchCard(group, fix) {
   const card = document.createElement("div");
   card.classList.add("match-card");
 
+  const argTime = toArgTime(fix.time, fix.utcOffset);
   card.innerHTML = `
     <div class="match-stadium">${fix.stadium}</div>
+    <div class="match-time-row">${fix.time}&nbsp;(GMT${fmtOffset(fix.utcOffset)})&ensp;${argTime}&nbsp;(GMT-3)</div>
     <div class="match-row">
       <span class="team home-team">
         <span class="flag">${home.flag}</span>
@@ -403,6 +405,14 @@ function showExportModal(text) {
 function formatDate(isoDate) {
   const [year, month, day] = isoDate.split("-");
   return `${day}/${month}/${year}`;
+}
+
+function fmtOffset(o) { return o >= 0 ? `+${o}` : `${o}`; }
+
+function toArgTime(localTime, utcOffset) {
+  const [h, m] = localTime.split(":").map(Number);
+  const argH = ((h + (-3 - utcOffset)) % 24 + 24) % 24;
+  return `${String(argH).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 // ─── Sincronización con Firebase al inicio ─────────────────────────────────
