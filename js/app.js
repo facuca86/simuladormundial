@@ -5,7 +5,7 @@ import {
   GROUP_G_FIXTURES, GROUP_H_FIXTURES, GROUP_I_FIXTURES,
   GROUP_J_FIXTURES, GROUP_K_FIXTURES, GROUP_L_FIXTURES
 } from "./fixtures.js";
-import { computeStandings } from "./standings.js";
+import { computeStandings, canStillQualify } from "./standings.js";
 import { saveResults, loadResults, clearResults, loadResultsFromFirebase } from "./storage.js";
 import { buildBracket, refreshBracketSeeds, scaleBracketToFit } from "./bracket.js";
 import { renderThirdsView } from "./thirds.js";
@@ -164,8 +164,10 @@ function buildMatchCard(group, fix) {
   const card = document.createElement("div");
   card.classList.add("match-card");
 
+  const argTime = toArgTime(fix.time, fix.utcOffset);
   card.innerHTML = `
     <div class="match-stadium">${fix.stadium}</div>
+    <div class="match-time-row">${fix.time}&nbsp;(GMT${fmtOffset(fix.utcOffset)})&ensp;${argTime}&nbsp;(GMT-3)</div>
     <div class="match-row">
       <span class="team home-team">
         <span class="flag">${home.flag}</span>
@@ -244,8 +246,11 @@ function updateStandingsDOM(group, container) {
 
   const rows = computeStandings(group.teams, group.fixtures, state[group.id]);
 
-  tbody.innerHTML = rows.map((row, idx) => `
-    <tr class="${idx < 2 ? "qualified" : ""}">
+  tbody.innerHTML = rows.map((row, idx) => {
+    const alive = canStillQualify(row.team.code, group.teams, group.fixtures, state[group.id]);
+    const cls = !alive ? "eliminated" : idx < 2 ? "qualified" : "";
+    return `
+    <tr class="${cls}">
       <td class="pos">${idx + 1}</td>
       <td class="team-cell">
         <span class="flag">${row.team.flag}</span>
@@ -260,7 +265,8 @@ function updateStandingsDOM(group, container) {
       <td>${row.dg >= 0 ? "+" : ""}${row.dg}</td>
       <td class="pts">${row.pts}</td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
 
   qualifiedList.innerHTML = rows.slice(0, 2).map((row, idx) => `
     <li>
@@ -399,6 +405,14 @@ function showExportModal(text) {
 function formatDate(isoDate) {
   const [year, month, day] = isoDate.split("-");
   return `${day}/${month}/${year}`;
+}
+
+function fmtOffset(o) { return o >= 0 ? `+${o}` : `${o}`; }
+
+function toArgTime(localTime, utcOffset) {
+  const [h, m] = localTime.split(":").map(Number);
+  const argH = ((h + (-3 - utcOffset)) % 24 + 24) % 24;
+  return `${String(argH).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 // ─── Sincronización con Firebase al inicio ─────────────────────────────────
