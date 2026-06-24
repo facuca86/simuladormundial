@@ -5,8 +5,9 @@
 import { computeStandings, computeBestThirds } from "./standings.js";
 import { BEST_THIRDS_COMBINATIONS } from "./combinations.js";
 
-// ─── Fuerza por equipo (0–100) ────────────────────────────────────────────────
+// ─── Fuerza BASE por equipo (0–100) ──────────────────────────────────────────
 // Top FIFA calibrado con ranking junio 2026; medios/débiles estimados.
+// NO mutar: es el ancla para recalibrateStrengths (el ajuste bayesiano).
 export const STRENGTH = {
   ARG: 95, FRA: 94, ESP: 93, ENG: 90, BRA: 89, POR: 87, NED: 86,
   GER: 85, BEL: 84, MAR: 82, URU: 81, COL: 80, CRO: 80, NOR: 79,
@@ -17,7 +18,27 @@ export const STRENGTH = {
   NZL: 62, JOR: 60, CPV: 58, PAN: 57, HAI: 56, CUW: 55,
 };
 
-// Equipos anfitriones: reciben bono +10% cuando juegan en su propio país.
+// ─── Parámetros del ajuste bayesiano (fáciles de tunear) ─────────────────────
+//
+// LEARNING_RATE: puntos de fuerza por unidad de sorpresa híbrida antes del blend.
+// BLEND: peso de la fuerza ajustada en la mezcla final con la base.
+//   0.55 → moderado: los resultados importan pero el ranking previo pesa ~45%.
+// W_GOLES / W_RESULTADO: pesos del componente de goles vs. resultado en la
+//   sorpresa híbrida (deben sumar 1). 0.5/0.5 = 50 % cada uno.
+// GOALS_SCALE: divisor para normalizar la sorpresa de goles al mismo orden de
+//   magnitud que la sorpresa de resultado (escala [0,1]). Igual a los goles
+//   esperados por equipo por partido (≈ 1.5), así (goles − λ)×peso / 1.5 ≈ ±1
+//   para un partido típico, comparable con resultado_real − P(resultado).
+export const LEARNING_RATE     = 2.0;
+export const BLEND             = 0.55;
+export const W_GOLES           = 0.5;
+export const W_RESULTADO       = 0.5;
+export const GOALS_SCALE       = 1.5;
+const        STRENGTH_CLAMP_MIN = 40;
+const        STRENGTH_CLAMP_MAX = 99;
+
+// ─── Equipos anfitriones ──────────────────────────────────────────────────────
+// Reciben bono +10% cuando juegan en su propio país.
 const HOSTS = new Set(["MEX", "USA", "CAN"]);
 
 // País sede de cada estadio del grupo.
@@ -42,6 +63,123 @@ export const STADIUM_COUNTRY = {
   "Lumen Field, Seattle":                "USA",
 };
 
+// ─── Helpers para P(victoria/empate/derrota) vía Poisson bivariante ──────────
+// Método: distribución de Poisson bivariante independiente (Dixon & Coles 1997).
+// Suma directa truncada a _MAX_G: error < 0.3 % para λ ≤ 4 (típico en fútbol).
+
+const _LOG_FACT = (() => {
+  const t = [0];
+  for (let i = 1; i <= 20; i++) t.push(t[i - 1] + Math.log(i));
+  return t;
+})();
+
+// P(X = k) para X ~ Poisson(λ), log-sum para estabilidad numérica.
+function _poissonPMF(lambda, k) {
+  if (k < 0 || k > 20 || lambda <= 0) return 0;
+  return Math.exp(-lambda + k * Math.log(lambda) - _LOG_FACT[k]);
+}
+
+const _MAX_G = 8;  // truncar la suma en 8 goles por equipo
+
+// Devuelve { pWin, pDraw } para el equipo home dado λH y λA.
+// pLoss = 1 − pWin − pDraw. Renormaliza por la masa capturada en la grilla.
+function _matchOutcomeProbs(lambdaH, lambdaA) {
+  let pWin = 0, pDraw = 0, mass = 0;
+  for (let h = 0; h <= _MAX_G; h++) {
+    const pH = _poissonPMF(lambdaH, h);
+    for (let a = 0; a <= _MAX_G; a++) {
+      const joint = pH * _poissonPMF(lambdaA, a);
+      mass += joint;
+      if      (h > a) pWin  += joint;
+      else if (h === a) pDraw += joint;
+    }
+  }
+  return { pWin: pWin / mass, pDraw: pDraw / mass };
+}
+
+// ─── Ajuste bayesiano de fuerzas ─────────────────────────────────────────────
+/**
+ * Recalibra las fuerzas usando un modelo HÍBRIDO: sorpresa por goles + por resultado.
+ *
+ * Para cada partido jugado calcula:
+ *   1. Sorpresa por goles (normalizada): (goles_real − λ) × peso_contundencia / GOALS_SCALE
+ *      - λ = goles esperados según el motor Poisson con fuerzas actuales.
+ *      - peso = 1 + |margen| × 0.2 (un 4-0 mueve más que un 1-0).
+ *      - GOALS_SCALE ≈ goles esperados por equipo (≈ 1.5) → escala comparable a [0,1].
+ *   2. Sorpresa por resultado: outcome_real − outcome_esperado
+ *      - outcome: victoria=1, empate=0.5, derrota=0 (escala Points Share).
+ *      - P(victoria/empate/derrota) via Poisson bivariante truncada (_matchOutcomeProbs).
+ *      - Ganarle a un favorito (P_victoria baja) genera sorpresa positiva grande.
+ *   Total: W_GOLES × sorpresaGoles + W_RESULTADO × sorpresaResultado
+ *
+ * Al final: mezcla con la base (BLEND) y clamp [40,99].
+ * Llamar UNA VEZ antes del loop Monte Carlo.
+ *
+ * @param {Object[]} GROUPS        - Array de grupos { id, teams, fixtures }
+ * @param {Object}   state         - { groupId: { fixtureId: { home, away } } }
+ * @param {Object}   STRENGTH_BASE - Fuerzas base; NO se mutan (son el ancla)
+ * @returns {Object} STRENGTH_ADJ  - Fuerzas ajustadas por código de equipo
+ */
+export function recalibrateStrengths(GROUPS, state, STRENGTH_BASE) {
+  const adj = { ...STRENGTH_BASE };
+  const BASE = 1.2, ALPHA = 0.6;
+
+  for (const group of GROUPS) {
+    const gs = state[group.id] || {};
+    for (const fix of group.fixtures) {
+      const r = gs[fix.id];
+      if (!r || r.home === "" || r.away === "") continue;
+      const actualH = parseInt(r.home, 10);
+      const actualA = parseInt(r.away, 10);
+      if (isNaN(actualH) || isNaN(actualA)) continue;
+
+      // Goles esperados con las fuerzas ACTUALES (las actualizaciones anteriores influyen)
+      const sH = adj[fix.home] ?? 65;
+      const sA = adj[fix.away] ?? 65;
+      const venue    = STADIUM_COUNTRY[fix.stadium] ?? "USA";
+      const homeMult = (HOSTS.has(fix.home) && venue === fix.home) ? 1.1 : 1.0;
+      const awayMult = (HOSTS.has(fix.away) && venue === fix.away) ? 1.1 : 1.0;
+      const ratio    = sH / sA;
+      const lambdaH  = BASE * Math.pow(ratio,     ALPHA) * homeMult;
+      const lambdaA  = BASE * Math.pow(1 / ratio, ALPHA) * awayMult;
+
+      // ── Componente 1: sorpresa por goles (normalizada a escala [0,1]) ──────
+      // Dividir por GOALS_SCALE lleva (goles − λ)×peso al rango ≈ ±1,
+      // comparable con la sorpresa de resultado que también vive en [−1,+1].
+      const margin = Math.abs(actualH - actualA);
+      const weight = 1 + margin * 0.2;
+      const goalsH = (actualH - lambdaH) * weight / GOALS_SCALE;
+      const goalsA = (actualA - lambdaA) * weight / GOALS_SCALE;
+
+      // ── Componente 2: sorpresa por resultado ──────────────────────────────
+      // outcome_esperado = P(win)×1 + P(draw)×0.5 + P(loss)×0
+      const { pWin, pDraw } = _matchOutcomeProbs(lambdaH, lambdaA);
+      const expH = pWin + 0.5 * pDraw;       // outcome esperado para home ∈ (0,1)
+      const expA = (1 - pWin - pDraw) + 0.5 * pDraw;  // = 1 − expH
+      const realH = actualH > actualA ? 1.0 : actualH === actualA ? 0.5 : 0.0;
+      const realA = 1.0 - realH;             // simétrico: realH + realA = 1
+      const resultH = realH - expH;
+      const resultA = realA - expA;
+
+      // ── Sorpresa híbrida total ─────────────────────────────────────────────
+      const surpriseH = W_GOLES * goalsH + W_RESULTADO * resultH;
+      const surpriseA = W_GOLES * goalsA + W_RESULTADO * resultA;
+
+      adj[fix.home] += LEARNING_RATE * surpriseH;
+      adj[fix.away] += LEARNING_RATE * surpriseA;
+    }
+  }
+
+  // Anclaje: mezclar con la base y recortar al rango permitido
+  const STRENGTH_ADJ = {};
+  for (const code of Object.keys(STRENGTH_BASE)) {
+    const blended = BLEND * adj[code] + (1 - BLEND) * STRENGTH_BASE[code];
+    STRENGTH_ADJ[code] = Math.min(STRENGTH_CLAMP_MAX,
+                          Math.max(STRENGTH_CLAMP_MIN, blended));
+  }
+  return STRENGTH_ADJ;
+}
+
 // ─── Distribución de Poisson ──────────────────────────────────────────────────
 // Método de Knuth: O(λ) iteraciones promedio, óptimo para λ < 3.
 function poissonSample(lambda) {
@@ -57,9 +195,11 @@ function poissonSample(lambda) {
 //     que esté jugando EN SU PROPIO PAÍS (venueCountry === teamCode).
 //   - Si es null (fase K.O., sede desconocida): comportamiento anterior —
 //     solo el equipo listado como home recibe el bono si es anfitrión.
-export function simulateMatch(homeCode, awayCode, venueCountry = null) {
-  const sH = STRENGTH[homeCode] ?? 65;
-  const sA = STRENGTH[awayCode] ?? 65;
+// strengthTable: tabla de fuerzas a usar (default = STRENGTH base).
+//   El Monte Carlo pasa STRENGTH_ADJ (fuerzas ajustadas) para simular pendientes.
+export function simulateMatch(homeCode, awayCode, venueCountry = null, strengthTable = STRENGTH) {
+  const sH = strengthTable[homeCode] ?? 65;
+  const sA = strengthTable[awayCode] ?? 65;
   const BASE  = 1.2;
   const ALPHA = 0.6;
   const ratio = sH / sA;
@@ -78,10 +218,10 @@ export function simulateMatch(homeCode, awayCode, venueCountry = null) {
 }
 
 // Partido eliminatorio: empate → penales ponderados por fuerza relativa.
-function knockoutWinner(h, a) {
-  const { home, away } = simulateMatch(h, a);
+function knockoutWinner(h, a, strengthTable = STRENGTH) {
+  const { home, away } = simulateMatch(h, a, null, strengthTable);
   if (home !== away) return home > away ? h : a;
-  const sH = STRENGTH[h] ?? 65, sA = STRENGTH[a] ?? 65;
+  const sH = strengthTable[h] ?? 65, sA = strengthTable[a] ?? 65;
   return Math.random() < sH / (sH + sA) ? h : a;
 }
 
@@ -124,7 +264,7 @@ function resolveSeed(seed, qualified) {
 
 // ─── Simulación de un bracket completo ────────────────────────────────────────
 // Acumula contadores por equipo. Devuelve el código del campeón.
-function simulateBracket(qualified, bestThirds, counts) {
+function simulateBracket(qualified, bestThirds, counts, strengthTable = STRENGTH) {
   // Determinar combinación de terceros
   const top8     = bestThirds.slice(0, 8);
   const comboKey = top8.map(t => t.groupLabel).sort().join("");
@@ -150,7 +290,7 @@ function simulateBracket(qualified, bestThirds, counts) {
     if (!h && !a) return null;
     if (!h) return a;
     if (!a) return h;
-    return knockoutWinner(h, a);
+    return knockoutWinner(h, a, strengthTable);
   });
 
   // R16 → 8 ganadores (= equipos en cuartos)
@@ -159,7 +299,7 @@ function simulateBracket(qualified, bestThirds, counts) {
     if (!h && !a) return null;
     if (!h) return a;
     if (!a) return h;
-    return knockoutWinner(h, a);
+    return knockoutWinner(h, a, strengthTable);
   });
   for (const code of r16Out) if (code) counts[code].qf++;
 
@@ -169,7 +309,7 @@ function simulateBracket(qualified, bestThirds, counts) {
     if (!h && !a) return null;
     if (!h) return a;
     if (!a) return h;
-    return knockoutWinner(h, a);
+    return knockoutWinner(h, a, strengthTable);
   });
   for (const code of qfOut) if (code) counts[code].sf++;
 
@@ -179,14 +319,14 @@ function simulateBracket(qualified, bestThirds, counts) {
     if (!h && !a) return null;
     if (!h) return a;
     if (!a) return h;
-    return knockoutWinner(h, a);
+    return knockoutWinner(h, a, strengthTable);
   });
   for (const code of sfOut) if (code) counts[code].final++;
 
   // Final
   const [f1, f2] = sfOut;
   if (f1 && f2) {
-    const champion = knockoutWinner(f1, f2);
+    const champion = knockoutWinner(f1, f2, strengthTable);
     counts[champion].champion++;
     return champion;
   }
@@ -204,7 +344,15 @@ export function markCacheStale() {
 }
 
 // ─── Motor principal Monte Carlo ──────────────────────────────────────────────
-export function runMonteCarlo(GROUPS, state, iterations = 2000) {
+// strengthOverride: si se pasa un objeto de fuerzas pre-calculado (e.g. para
+// comparaciones en tests), se usa en lugar de llamar recalibrateStrengths.
+// En uso normal (UI y tests de invariantes) se deja en null → calibración híbrida.
+export function runMonteCarlo(GROUPS, state, iterations = 2000, strengthOverride = null) {
+  // ── Ajuste bayesiano de fuerzas (UNA vez, fuera del loop) ────────────────
+  // Depende solo de los partidos jugados (que no cambian entre iteraciones).
+  // Los pendientes se simulan con estas fuerzas ya recalibradas.
+  const STRENGTH_ADJ = strengthOverride ?? recalibrateStrengths(GROUPS, state, STRENGTH);
+
   // ── Pre-procesar fixtures ────────────────────────────────────────────────
   const fixedResults   = {};  // groupId → { fixtureId → {home, away} }
   const pendingByGroup = {};  // groupId → [fixture objects]
@@ -258,11 +406,11 @@ export function runMonteCarlo(GROUPS, state, iterations = 2000) {
 
   // ── Bucle Monte Carlo ─────────────────────────────────────────────────────
   for (let i = 0; i < iterations; i++) {
-    // 1. Simular fixtures pendientes (mutar buffers in-place)
+    // 1. Simular fixtures pendientes con fuerzas ajustadas (mutar buffers in-place)
     for (const group of GROUPS) {
       for (const fix of pendingByGroup[group.id]) {
         const venue = STADIUM_COUNTRY[fix.stadium] ?? "USA";
-        const { home, away } = simulateMatch(fix.home, fix.away, venue);
+        const { home, away } = simulateMatch(fix.home, fix.away, venue, STRENGTH_ADJ);
         const slot    = pendBuf[group.id][fix.id];
         slot.home = String(home);
         slot.away = String(away);
@@ -281,9 +429,9 @@ export function runMonteCarlo(GROUPS, state, iterations = 2000) {
       }
     }
 
-    // 3. Calcular mejores terceros y simular bracket
+    // 3. Calcular mejores terceros y simular bracket con fuerzas ajustadas
     const bestThirds = computeBestThirds(GROUPS, simBuf);
-    simulateBracket(qualified, bestThirds, counts);
+    simulateBracket(qualified, bestThirds, counts, STRENGTH_ADJ);
   }
 
   // ── Convertir contadores a probabilidades ─────────────────────────────────
