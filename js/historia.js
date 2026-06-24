@@ -4,7 +4,9 @@ const MUNDIALES = [
   {
     año: 1930,
     sede: "Uruguay",
-    img: "img/uruguay1930.jpg",
+    img: "img/uruguay1930.webp",
+    imgWidth: 800,
+    imgHeight: 1199,
     resumen: "El primer Campeonato Mundial de Fútbol de la FIFA se celebró en Uruguay, país que había ganado el oro olímpico en 1924 y 1928. Participaron 13 selecciones invitadas directamente por la FIFA, sin ronda de clasificación. Uruguay construyó el Estadio Centenario en solo 9 meses para albergar la competición.",
     campeon: "🇺🇾 Uruguay",
     subcampeon: "🇦🇷 Argentina",
@@ -20,7 +22,9 @@ const MUNDIALES = [
   {
     año: 1934,
     sede: "Italia",
-    img: "img/italia1934.jpg",
+    img: "img/italia1934.webp",
+    imgWidth: 800,
+    imgHeight: 1202,
     resumen: "El primer mundial con fase de clasificación previa. Italia, bajo el mando de Vittorio Pozzo, ganó en casa su primer título usando un formato de eliminación directa desde la primera ronda. Uruguay, campeón defensor, se negó a participar en protesta por la baja participación europea en 1930.",
     campeon: "🇮🇹 Italia",
     subcampeon: "🇨🇿 Checoslovaquia",
@@ -36,7 +40,9 @@ const MUNDIALES = [
   {
     año: 1938,
     sede: "Francia",
-    img: "img/francia1938.jpg",
+    img: "img/francia1938.webp",
+    imgWidth: 800,
+    imgHeight: 1207,
     resumen: "Último mundial antes de la Segunda Guerra Mundial. Italia revalidó su título convirtiéndose en el primer equipo bicampeón. Brasil, con Leônidas da Silva como gran figura, quedó tercero. La guerra impidió la celebración de los torneos de 1942 y 1946.",
     campeon: "🇮🇹 Italia",
     subcampeon: "🇭🇺 Hungría",
@@ -52,7 +58,9 @@ const MUNDIALES = [
   {
     año: 1950,
     sede: "Brasil",
-    img: "img/brasil1950.jpg",
+    img: "img/brasil1950.webp",
+    imgWidth: 800,
+    imgHeight: 1113,
     resumen: "El único Mundial con fase final de round-robin en lugar de una final directa. El 'Maracanazo' quedó grabado en la historia: Uruguay venció a Brasil ante 173.850 espectadores en el Maracaná, en la mayor remontada final de la historia del torneo. Brasil entró en un duelo de duelo colectivo.",
     campeon: "🇺🇾 Uruguay",
     subcampeon: "🇧🇷 Brasil",
@@ -68,7 +76,9 @@ const MUNDIALES = [
   {
     año: 1954,
     sede: "Suiza",
-    img: "img/suiza1954.jpg",
+    img: "img/suiza1954.webp",
+    imgWidth: 800,
+    imgHeight: 1132,
     resumen: "El 'Milagro de Berna': Alemania Occidental venció a la invicta Hungría de Ferenc Puskás, considerada el mejor equipo del mundo. Hungría había ganado 4-2 a Alemania en la fase de grupos. Este torneo fue el primero transmitido por televisión en Europa.",
     campeon: "🇩🇪 Alemania Occ.",
     subcampeon: "🇭🇺 Hungría",
@@ -84,7 +94,9 @@ const MUNDIALES = [
   {
     año: 1958,
     sede: "Suecia",
-    img: "img/suecia1958.jpg",
+    img: "img/suecia1958.webp",
+    imgWidth: 800,
+    imgHeight: 1133,
     resumen: "El debut mundial de Pelé a los 17 años fue apoteósico: marcó 6 goles en 4 partidos, incluyendo un hat-trick en semis y 2 goles en la final. Brasil ganó su primer título mundial con una generación dorada que incluía a Garrincha, Didi y Vavá.",
     campeon: "🇧🇷 Brasil",
     subcampeon: "🇸🇪 Suecia",
@@ -100,7 +112,9 @@ const MUNDIALES = [
   {
     año: 1962,
     sede: "Chile",
-    img: "img/chile1962.jpg",
+    img: "img/chile1962.webp",
+    imgWidth: 800,
+    imgHeight: 1132,
     resumen: "A pesar del devastador terremoto de 1960, Chile organizó el torneo. Brasil revalidó el título con Garrincha como figura principal tras la lesión de Pelé. La 'Batalla de Santiago' entre Chile e Italia es uno de los partidos más violentos de la historia mundialista.",
     campeon: "🇧🇷 Brasil",
     subcampeon: "🇨🇿 Checoslovaquia",
@@ -116,7 +130,9 @@ const MUNDIALES = [
   {
     año: 1966,
     sede: "Inglaterra",
-    img: "img/inglaterra1966.jpg",
+    img: "img/inglaterra1966.webp",
+    imgWidth: 800,
+    imgHeight: 1132,
     resumen: "El único título mundialista de Inglaterra, en casa. El famoso gol de Geoff Hurst en la prórroga —cuyo rebote en el larguero generó polémica sobre si cruzó la línea— sigue siendo uno de los más debatidos. Eusébio fue el gran goleador del torneo con 9 goles.",
     campeon: "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inglaterra",
     subcampeon: "🇩🇪 Alemania Occ.",
@@ -132,7 +148,9 @@ const MUNDIALES = [
   {
     año: 1970,
     sede: "México",
-    img: "img/mexico1970.jpg",
+    img: "img/mexico1970.webp",
+    imgWidth: 800,
+    imgHeight: 1099,
     resumen: "Considerado el mejor Mundial de la historia. Brasil con Pelé, Tostão, Rivelino, Jairzinho y Gérson presentó un fútbol total de belleza insuperable. Jairzinho marcó en todos los partidos —único jugador en lograrlo— y Brasil se quedó con el trofeo Jules Rimet de forma permanente al ganar su tercer título.",
     campeon: "🇧🇷 Brasil",
     subcampeon: "🇮🇹 Italia",
@@ -148,7 +166,9 @@ const MUNDIALES = [
   {
     año: 1974,
     sede: "Alemania Occ.",
-    img: "img/alemania1974.jpg",
+    img: "img/alemania1974.webp",
+    imgWidth: 800,
+    imgHeight: 1132,
     resumen: "La era del Fútbol Total holandés de Rinus Michels y Johan Cruyff. Los Países Bajos llegaron a la final como favoritos, pero Alemania Occidental se impuso en su propio estadio. Se estrenó el nuevo trofeo FIFA World Cup Trophy, ya que Brasil conservó el Jules Rimet.",
     campeon: "🇩🇪 Alemania Occ.",
     subcampeon: "🇳🇱 Países Bajos",
@@ -164,7 +184,9 @@ const MUNDIALES = [
   {
     año: 1978,
     sede: "Argentina",
-    img: "img/argentina1978.jpg",
+    img: "img/argentina1978.webp",
+    imgWidth: 800,
+    imgHeight: 1200,
     resumen: "Argentina conquistó su primer título mundial en casa bajo la dictadura militar. Mario Kempes fue el goleador del torneo con 6 tantos. La final se disputó con lluvia de papelitos blancos en el Monumental. Países Bajos, sin Cruyff (que se negó a ir por razones políticas), fue subcampeón por segunda vez.",
     campeon: "🇦🇷 Argentina",
     subcampeon: "🇳🇱 Países Bajos",
@@ -180,7 +202,9 @@ const MUNDIALES = [
   {
     año: 1982,
     sede: "España",
-    img: "img/espana1982.jpg",
+    img: "img/españa1982.webp",
+    imgWidth: 800,
+    imgHeight: 1195,
     resumen: "Italia ganó su tercer título con Paolo Rossi como protagonista absoluto: 6 goles en 5 partidos tras regresar de una suspensión. Brasil presentó uno de los equipos más brillantes de su historia (Zico, Sócrates, Falcão), pero cayó ante Italia en una de las mayores sorpresas del torneo.",
     campeon: "🇮🇹 Italia",
     subcampeon: "🇩🇪 Alemania Occ.",
@@ -196,7 +220,9 @@ const MUNDIALES = [
   {
     año: 1986,
     sede: "México",
-    img: "img/mexico1986.jpg",
+    img: "img/mexico1986.webp",
+    imgWidth: 800,
+    imgHeight: 1139,
     resumen: "El Mundial de Maradona. En cuartos de final ante Inglaterra marcó dos goles legendarios en el mismo partido: el 'Gol del Siglo' con una gambeta magistral de 60 metros, y la 'Mano de Dios' con la mano. Argentina ganó su segundo título. Fue el torneo donde más goles marcó un solo jugador en la historia reciente.",
     campeon: "🇦🇷 Argentina",
     subcampeon: "🇩🇪 Alemania Occ.",
@@ -212,7 +238,9 @@ const MUNDIALES = [
   {
     año: 1990,
     sede: "Italia",
-    img: "img/italia1990.jpg",
+    img: "img/italia1990.webp",
+    imgWidth: 800,
+    imgHeight: 1132,
     resumen: "El Mundial del juego defensivo y los penales. Solo promediaron 2,21 goles por partido, el registro más bajo de la historia. Salvatore Schillaci, el gran héroe local, ganó la Bota de Oro con 6 goles. Alemania ganó con el único gol de Brehme de penal en una fina muy decepcionante.",
     campeon: "🇩🇪 Alemania Occ.",
     subcampeon: "🇦🇷 Argentina",
@@ -228,7 +256,9 @@ const MUNDIALES = [
   {
     año: 1994,
     sede: "Estados Unidos",
-    img: "img/usa1994.jpg",
+    img: "img/usa1994.webp",
+    imgWidth: 800,
+    imgHeight: 1134,
     resumen: "Brasil ganó su cuarto título en la primera final que se resolvió por penaltis. Roberto Baggio, el héroe de Italia, falló el último penal con el cielo de California como testigo. Romário y Bebeto formaron la dupla goleadora más letal del torneo.",
     campeon: "🇧🇷 Brasil",
     subcampeon: "🇮🇹 Italia",
@@ -244,7 +274,9 @@ const MUNDIALES = [
   {
     año: 1998,
     sede: "Francia",
-    img: "img/francia1998.jpg",
+    img: "img/francia1998.webp",
+    imgWidth: 800,
+    imgHeight: 984,
     resumen: "Francia ganó su primer título en casa con Zinedine Zidane marcando dos goles de cabeza en la final. Brasil llegó a la final con Ronaldo en circunstancias misteriosas —sufrió un episodio convulsivo la noche anterior— y perdió claramente. Ronaldo terminó ganando la Bota de Plata con 4 goles.",
     campeon: "🇫🇷 Francia",
     subcampeon: "🇧🇷 Brasil",
@@ -260,7 +292,9 @@ const MUNDIALES = [
   {
     año: 2002,
     sede: "Corea/Japón",
-    img: "img/coreajapon2002.jpg",
+    img: "img/coreajapon2002.webp",
+    imgWidth: 800,
+    imgHeight: 1141,
     resumen: "El primer Mundial coorganizado y el primero en Asia. La redención de Ronaldo: después de su colapso en 1998, marcó 8 goles incluyendo el doblete en la final. Corea del Sur sorprendió al mundo llegando a las semifinales. Turquía terminó tercera en su única participación histórica.",
     campeon: "🇧🇷 Brasil",
     subcampeon: "🇩🇪 Alemania",
@@ -276,7 +310,9 @@ const MUNDIALES = [
   {
     año: 2006,
     sede: "Alemania",
-    img: "img/alemania2006.jpg",
+    img: "img/alemania2006.webp",
+    imgWidth: 800,
+    imgHeight: 1067,
     resumen: "Italia ganó su cuarto título en dramáticos penaltis. El momento más recordado fue el cabezazo de Zidane al pecho de Materazzi en la prórroga de la final, lo que le valió la expulsión en su último partido profesional. Alemania fue un anfitrión brillante y terminó tercero.",
     campeon: "🇮🇹 Italia",
     subcampeon: "🇫🇷 Francia",
@@ -292,7 +328,9 @@ const MUNDIALES = [
   {
     año: 2010,
     sede: "Sudáfrica",
-    img: "img/sudafrica2010.jpg",
+    img: "img/sudafrica2010.webp",
+    imgWidth: 800,
+    imgHeight: 1170,
     resumen: "El primer Mundial en África. España ganó su primer título con el 'tiki-taka' de Xavi, Iniesta e Iniesta. El gol de Iniesta en el minuto 116 de la prórroga decidió la final. El vuvuzela se convirtió en el símbolo sonoro del torneo. Paul el Pulpo acertó todos los resultados.",
     campeon: "🇪🇸 España",
     subcampeon: "🇳🇱 Países Bajos",
@@ -308,7 +346,9 @@ const MUNDIALES = [
   {
     año: 2014,
     sede: "Brasil",
-    img: "img/brasil2014.jpg",
+    img: "img/brasil2014.webp",
+    imgWidth: 800,
+    imgHeight: 1121,
     resumen: "El 'Mineirazo': Brasil cayó 1-7 ante Alemania en semis en el estadio Mineirão, la mayor goleada en unas semifinales mundialistas. Alemania ganó su cuarto título con el gol de Götze en la prórroga. Messi ganó el Balón de Oro pero quedó sin título.",
     campeon: "🇩🇪 Alemania",
     subcampeon: "🇦🇷 Argentina",
@@ -324,7 +364,9 @@ const MUNDIALES = [
   {
     año: 2018,
     sede: "Rusia",
-    img: "img/rusia2018.jpg",
+    img: "img/rusia2018.webp",
+    imgWidth: 800,
+    imgHeight: 1009,
     resumen: "Francia ganó su segundo título con una generación liderada por Kylian Mbappé, quien a los 19 años se convirtió en el segundo jugador en marcar en una final mundialista tras Pelé. Croacia llegó sorpresivamente a la final. Bélgica terminó tercera en su mejor participación histórica.",
     campeon: "🇫🇷 Francia",
     subcampeon: "🇭🇷 Croacia",
@@ -340,7 +382,9 @@ const MUNDIALES = [
   {
     año: 2022,
     sede: "Qatar",
-    img: "img/qatar2022.jpg",
+    img: "img/qatar2022.webp",
+    imgWidth: 800,
+    imgHeight: 994,
     resumen: "El Mundial más emocionante de la historia y la redención de Lionel Messi. Argentina y Francia protagonizaron la final más épica jamás jugada: 3-3 tras 120 minutos, con Mbappé logrando un hat-trick y Messi marcando dos. Argentina ganó en penaltis. Messi finalmente levantó la Copa del Mundo y completó su leyenda.",
     campeon: "🇦🇷 Argentina",
     subcampeon: "🇫🇷 Francia",
@@ -356,7 +400,9 @@ const MUNDIALES = [
 ];
 
 const ESTADISTICAS = {
-  img: "img/messi.jpg",
+  img: "img/messi.webp",
+    imgWidth: 800,
+    imgHeight: 1133,
   titulo: "Estadísticas y Récords",
   datos: [
     { icono: "⚽", titulo: "Máximo Goleador Histórico", valor: "Miroslav Klose (Alemania)", detalle: "16 goles en 4 mundiales (2002, 2006, 2010, 2014)" },
@@ -377,7 +423,9 @@ const ESTADISTICAS = {
 };
 
 const TROFEO = {
-  img: "img/julesrimet.jpg",
+  img: "img/julesrimet.webp",
+    imgWidth: 800,
+    imgHeight: 1133,
   titulo: "El Trofeo de la Copa del Mundo",
   historia: [
     {
@@ -470,6 +518,8 @@ function crearTarjetaMundial(mundial) {
   img.src = mundial.img;
   img.alt = `Póster Mundial ${mundial.año} ${mundial.sede}`;
   img.loading = "lazy";
+  img.width = mundial.imgWidth;
+  img.height = mundial.imgHeight;
   img.onerror = function () {
     if (/\.(jpg|jpeg)$/i.test(this.src)) {
       this.src = this.src.replace(/\.(jpg|jpeg)$/i, ".png");
