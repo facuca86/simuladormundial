@@ -1476,3 +1476,120 @@ td.pts {
 }
 
 .btn-copy:hover { background: var(--accent); color: #fff; }
+
+/* ── Tournament Status Bar ────────────────────────────────────────────────── */
+.tournament-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+  flex-wrap: wrap;
+  min-height: 1.8rem;
+}
+
+.status-divider {
+  color: rgba(255,255,255,0.25);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.status-eliminated {
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: #ff6b6b;
+  letter-spacing: 0.3px;
+}
+
+.status-eliminated strong {
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.status-in-race {
+  font-size: 0.83rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.status-in-race strong {
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.status-in-race--green        { color: #2ed573; }
+.status-in-race--green strong { color: #2ed573; }
+
+.status-in-race--bronze        { color: #cd7f32; }
+.status-in-race--bronze strong { color: #cd7f32; }
+
+.status-in-race--silver        { color: #c8d0dc; }
+.status-in-race--silver strong { color: #c8d0dc; }
+
+.status-in-race--gold        { color: #FFD700; }
+.status-in-race--gold strong { color: #FFD700; text-shadow: 0 0 8px rgba(255,215,0,0.5); }
+
+/* ── Header Podium (aparece cuando hay campeón) ───────────────────────────── */
+.header-podium {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.header-podium__item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.header-podium__item--gold {
+  color: #FFD700;
+  border-color: rgba(255, 215, 0, 0.35);
+  background: rgba(255, 215, 0, 0.09);
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+
+.header-podium__item--silver {
+  color: #c8d0dc;
+  border-color: rgba(200, 208, 220, 0.35);
+  background: rgba(200, 208, 220, 0.07);
+}
+
+.header-podium__item--bronze {
+  color: #cd7f32;
+  border-color: rgba(205, 127, 50, 0.35);
+  background: rgba(205, 127, 50, 0.07);
+}
+
+.header-podium__medal { font-size: 1.1rem; line-height: 1; }
+.header-podium__flag  { font-size: 1.05rem; line-height: 1; }
+.header-podium__name  { font-weight: 800; }
+
+.header-podium__name--pending {
+  font-weight: 500;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+/* ── 3er Puesto en el bracket central ────────────────────────────────────── */
+.bracket-center__third {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+.bracket-center__third .bracket-round__label {
+  color: #cd7f32;
+}
+
+.bracket-center__third .bracket-match {
+  border-color: rgba(205, 127, 50, 0.35);
+  box-shadow: 0 0 10px rgba(205, 127, 50, 0.1);
+}

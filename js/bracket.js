@@ -293,6 +293,7 @@ export function resetBracket() {
   renderBracketTeams();
   syncBracketRadios();
   updateChampion();
+  document.dispatchEvent(new CustomEvent("bracketUpdated"));
 }
 
 export function scaleBracketToFit() {
@@ -365,6 +366,15 @@ function buildCenterColumn() {
   champDiv.id = "champion-display";
   champDiv.className = "bracket-center__champion";
   col.appendChild(champDiv);
+
+  const thirdWrap = document.createElement("div");
+  thirdWrap.className = "bracket-center__third";
+  const thirdLabel = document.createElement("div");
+  thirdLabel.className = "bracket-round__label";
+  thirdLabel.textContent = "3.º Puesto";
+  thirdWrap.appendChild(thirdLabel);
+  thirdWrap.appendChild(buildMatchBox(THIRD_PLACE));
+  col.appendChild(thirdWrap);
 
   return col;
 }
@@ -467,6 +477,7 @@ function handleRadioSelection(matchId, side) {
   syncBracketRadios();
   updateChampion();
   isUserAction = false;
+  document.dispatchEvent(new CustomEvent("bracketUpdated"));
 }
 
 function syncBracketRadios() {
@@ -523,6 +534,45 @@ function updateChampion() {
     if (champDisplay) champDisplay.classList.remove("champion-display--visible");
     lastChampionCode = null;
   }
+}
+
+// ─── Estadísticas del cuadro para el contador del header ─────────────────
+export function getBracketStats() {
+  const eliminatedCodes = new Set();
+  let champion = null;
+  let runnerUp = null;
+  let thirdPlace = null;
+
+  for (const round of ROUNDS) {
+    for (const m of round.matches) {
+      const res = bracketResults[m.id];
+      if (res && res.winner) {
+        const hTeam = bracketTeams[m.id]?.home;
+        const aTeam = bracketTeams[m.id]?.away;
+        if (hTeam && aTeam) {
+          const winner = res.winner === "home" ? hTeam : aTeam;
+          const loser  = res.winner === "home" ? aTeam : hTeam;
+          if (m.id === "final_1") {
+            champion = winner;
+            runnerUp = loser;
+          } else {
+            eliminatedCodes.add(loser.code);
+          }
+        }
+      }
+    }
+  }
+
+  const thirdRes = bracketResults[THIRD_PLACE.id];
+  if (thirdRes && thirdRes.winner) {
+    const hTeam = bracketTeams[THIRD_PLACE.id]?.home;
+    const aTeam = bracketTeams[THIRD_PLACE.id]?.away;
+    if (hTeam && aTeam) {
+      thirdPlace = thirdRes.winner === "home" ? hTeam : aTeam;
+    }
+  }
+
+  return { eliminatedCodes, champion, runnerUp, thirdPlace };
 }
 
 // ─── Confeti ─────────────────────────────────────────────────────────────

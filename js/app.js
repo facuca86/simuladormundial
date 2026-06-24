@@ -7,7 +7,7 @@ import {
 } from "./fixtures.js";
 import { computeStandings, canStillQualify, computeBestThirds } from "./standings.js";
 import { saveResults, loadResults, clearResults, loadResultsFromFirebase } from "./storage.js";
-import { buildBracket, refreshBracketSeeds, scaleBracketToFit } from "./bracket.js";
+import { buildBracket, refreshBracketSeeds, scaleBracketToFit, getBracketStats } from "./bracket.js";
 import { renderThirdsView } from "./thirds.js";
 import { renderHistoriaView } from "./historia.js";
 
@@ -34,6 +34,96 @@ for (const g of GROUPS) {
   state[g.id] = loadResults(g.id);
 }
 
+// ─── Contador de equipos ───────────────────────────────────────────────────
+function computeTournamentCounts() {
+  const allGroupsComplete = isGroupStageComplete();
+  let bestThirdCodes = null;
+
+  if (allGroupsComplete) {
+    const thirds = computeBestThirds(GROUPS, state);
+    bestThirdCodes = new Set(thirds.slice(0, 8).map(t => t.team.code));
+  }
+
+  const groupEliminated = new Set();
+
+  for (const g of GROUPS) {
+    const rows = computeStandings(g.teams, g.fixtures, state[g.id]);
+    rows.forEach((row, idx) => {
+      if (idx < 2) return;
+      if (idx === 2) {
+        if (allGroupsComplete) {
+          if (!bestThirdCodes || !bestThirdCodes.has(row.team.code)) {
+            groupEliminated.add(row.team.code);
+          }
+        } else {
+          if (!canStillQualify(row.team.code, g.teams, g.fixtures, state[g.id])) {
+            groupEliminated.add(row.team.code);
+          }
+        }
+      } else {
+        if (allGroupsComplete) {
+          groupEliminated.add(row.team.code);
+        } else {
+          if (!canStillQualify(row.team.code, g.teams, g.fixtures, state[g.id])) {
+            groupEliminated.add(row.team.code);
+          }
+        }
+      }
+    });
+  }
+
+  const { eliminatedCodes, champion, runnerUp, thirdPlace } = getBracketStats();
+  const totalEliminated = groupEliminated.size + eliminatedCodes.size;
+  const inRace = 48 - totalEliminated;
+
+  return { eliminated: totalEliminated, inRace, champion, runnerUp, thirdPlace };
+}
+
+function updateStatusBar() {
+  const bar = document.getElementById("tournament-status");
+  if (!bar) return;
+
+  const { eliminated, inRace, champion, runnerUp, thirdPlace } = computeTournamentCounts();
+
+  if (champion) {
+    const thirdHtml = thirdPlace
+      ? `<span class="header-podium__flag">${thirdPlace.flag}</span><span class="header-podium__name">${thirdPlace.name}</span>`
+      : `<span class="header-podium__name header-podium__name--pending">Por definir</span>`;
+
+    bar.innerHTML = `
+      <div class="header-podium">
+        <div class="header-podium__item header-podium__item--gold">
+          <span class="header-podium__medal">🥇</span>
+          <span class="header-podium__flag">${champion.flag}</span>
+          <span class="header-podium__name">${champion.name}</span>
+        </div>
+        <div class="header-podium__item header-podium__item--silver">
+          <span class="header-podium__medal">🥈</span>
+          <span class="header-podium__flag">${runnerUp.flag}</span>
+          <span class="header-podium__name">${runnerUp.name}</span>
+        </div>
+        <div class="header-podium__item header-podium__item--bronze">
+          <span class="header-podium__medal">🥉</span>
+          ${thirdHtml}
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  let raceClass;
+  if (inRace > 8)      raceClass = "green";
+  else if (inRace > 4) raceClass = "bronze";
+  else if (inRace > 2) raceClass = "silver";
+  else                 raceClass = "gold";
+
+  bar.innerHTML = `
+    <span class="status-eliminated">Equipos eliminados: <strong>${eliminated}</strong></span>
+    <span class="status-divider">·</span>
+    <span class="status-in-race status-in-race--${raceClass}">En Carrera: <strong>${inRace}</strong></span>
+  `;
+}
+
 // ─── Inicialización ────────────────────────────────────────────────────────
 function init() {
   const grid = document.getElementById("groups-grid");
@@ -44,6 +134,8 @@ function init() {
   buildBracket(document.getElementById("bracket-root"), getQualifiedTeams());
   renderThirdsView(document.getElementById("phase-thirds"), getQualifiedTeams());
   initTabs();
+  updateStatusBar();
+  document.addEventListener("bracketUpdated", updateStatusBar);
 }
 
 function initTabs() {
@@ -317,6 +409,7 @@ function handleScoreChange(group, fixtureId, homeInput, awayInput) {
   const qualified = getQualifiedTeams();
   refreshBracketSeeds(qualified);
   renderThirdsView(document.getElementById("phase-thirds"), qualified);
+  updateStatusBar();
 }
 
 // ─── Reinicio ──────────────────────────────────────────────────────────────
@@ -334,6 +427,7 @@ function resetGroup(group) {
   const qualified = getQualifiedTeams();
   refreshBracketSeeds(qualified);
   renderThirdsView(document.getElementById("phase-thirds"), qualified);
+  updateStatusBar();
 }
 
 // ─── Exportación de resultados ─────────────────────────────────────────────
@@ -466,6 +560,7 @@ async function syncFromFirebase() {
   const qualified = getQualifiedTeams();
   refreshBracketSeeds(qualified);
   renderThirdsView(document.getElementById("phase-thirds"), qualified);
+  updateStatusBar();
 }
 
 // ─── Bootstrap ─────────────────────────────────────────────────────────────
