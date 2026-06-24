@@ -1593,3 +1593,148 @@ td.pts {
   border-color: rgba(205, 127, 50, 0.35);
   box-shadow: 0 0 10px rgba(205, 127, 50, 0.1);
 }
+
+/* ── Predictor: columna Prob% en standings ───────────────────────────────── */
+.prob-th {
+  color: var(--accent2);
+  font-size: 0.75rem;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.prob-cell {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+tr.qualified .prob-cell {
+  color: #4ade80;
+}
+
+/* ── Aviso de predicciones desactualizadas (pestaña grupos) ─────────────── */
+.stale-notice {
+  background: rgba(250, 180, 0, 0.12);
+  border: 1px solid rgba(250, 180, 0, 0.4);
+  border-radius: var(--radius-sm);
+  color: #fac000;
+  font-size: 0.82rem;
+  padding: 0.55rem 1rem;
+  margin-bottom: 1rem;
+}
+
+/* ── Pestaña Probabilidades ─────────────────────────────────────────────── */
+.prob-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.prob-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.prob-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.prob-subtitle {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.prob-stale-banner {
+  background: rgba(250, 180, 0, 0.12);
+  border: 1px solid rgba(250, 180, 0, 0.4);
+  border-radius: var(--radius-sm);
+  color: #fac000;
+  font-size: 0.85rem;
+  padding: 0.65rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.prob-empty-notice {
+  background: rgba(30, 144, 255, 0.08);
+  border: 1px solid rgba(30, 144, 255, 0.25);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 0.65rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.prob-actions {
+  margin-bottom: 1.25rem;
+}
+
+.btn-prob-run {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 0.6rem 1.4rem;
+  transition: opacity 0.2s;
+}
+
+.btn-prob-run:hover:not(:disabled) { opacity: 0.85; }
+
+.btn-prob-run:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.prob-table-wrap {
+  overflow-x: auto;
+}
+
+.prob-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.prob-table th,
+.prob-table td {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.6rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.prob-table th {
+  background: var(--surface2);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.prob-table .team-col { text-align: left; min-width: 140px; }
+.prob-table .team-cell { text-align: left; }
+
+.pct-cell { color: var(--text-muted); font-weight: 600; }
+
+.pct-col--champion { color: var(--accent2); }
+
+.prob-table tr:hover td { background: rgba(30, 144, 255, 0.06); }
+
+.pct-cell--champion {
+  color: #ffd700;
+  font-weight: 700;
+  font-size: 0.93rem;
+}
