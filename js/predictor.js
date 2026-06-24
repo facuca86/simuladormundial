@@ -17,8 +17,30 @@ export const STRENGTH = {
   NZL: 62, JOR: 60, CPV: 58, PAN: 57, HAI: 56, CUW: 55,
 };
 
-// Sedes anfitrionas (reciben bono de localía cuando son el equipo local)
+// Equipos anfitriones: reciben bono +10% cuando juegan en su propio país.
 const HOSTS = new Set(["MEX", "USA", "CAN"]);
+
+// País sede de cada estadio del grupo.
+// Sedes mexicanas → "MEX" | canadienses → "CAN" | el resto → "USA".
+// Cubren las 16 sedes de la fase de grupos del fixture.
+export const STADIUM_COUNTRY = {
+  "Estadio Azteca, Ciudad de México":    "MEX",
+  "Estadio Akron, Guadalajara":          "MEX",
+  "Estadio BBVA, Monterrey":             "MEX",
+  "BMO Field, Toronto":                  "CAN",
+  "Estadio BC Place, Vancouver":         "CAN",
+  "MetLife Stadium, Nueva Jersey":       "USA",
+  "Gillette Stadium, Boston":            "USA",
+  "Lincoln Financial Field, Filadelfia": "USA",
+  "Hard Rock Stadium, Miami":            "USA",
+  "Mercedes-Benz Stadium, Atlanta":      "USA",
+  "SoFi Stadium, Los Ángeles":           "USA",
+  "Levi's Stadium, San Francisco":       "USA",
+  "NRG Stadium, Houston":                "USA",
+  "Arrowhead Stadium, Kansas City":      "USA",
+  "AT&T Stadium, Dallas":                "USA",
+  "Lumen Field, Seattle":                "USA",
+};
 
 // ─── Distribución de Poisson ──────────────────────────────────────────────────
 // Método de Knuth: O(λ) iteraciones promedio, óptimo para λ < 3.
@@ -29,17 +51,29 @@ function poissonSample(lambda) {
   return k - 1;
 }
 
-// ─── Simulación de partido de grupos ─────────────────────────────────────────
-export function simulateMatch(homeCode, awayCode) {
+// ─── Simulación de partido ────────────────────────────────────────────────────
+// venueCountry: país de la sede ("MEX"/"USA"/"CAN") para fase de grupos.
+//   - Si se provee: el bono +10% se aplica a CUALQUIER anfitrión (home o away)
+//     que esté jugando EN SU PROPIO PAÍS (venueCountry === teamCode).
+//   - Si es null (fase K.O., sede desconocida): comportamiento anterior —
+//     solo el equipo listado como home recibe el bono si es anfitrión.
+export function simulateMatch(homeCode, awayCode, venueCountry = null) {
   const sH = STRENGTH[homeCode] ?? 65;
   const sA = STRENGTH[awayCode] ?? 65;
   const BASE  = 1.2;
-  const ALPHA = 0.5;
-  const hostBonus = HOSTS.has(homeCode) ? 1.1 : 1.0;
+  const ALPHA = 0.6;
   const ratio = sH / sA;
+  let homeMult, awayMult;
+  if (venueCountry !== null) {
+    homeMult = (HOSTS.has(homeCode) && venueCountry === homeCode) ? 1.1 : 1.0;
+    awayMult = (HOSTS.has(awayCode) && venueCountry === awayCode) ? 1.1 : 1.0;
+  } else {
+    homeMult = HOSTS.has(homeCode) ? 1.1 : 1.0;
+    awayMult = 1.0;
+  }
   return {
-    home: poissonSample(BASE * Math.pow(ratio, ALPHA) * hostBonus),
-    away: poissonSample(BASE * Math.pow(1 / ratio, ALPHA)),
+    home: poissonSample(BASE * Math.pow(ratio, ALPHA) * homeMult),
+    away: poissonSample(BASE * Math.pow(1 / ratio, ALPHA) * awayMult),
   };
 }
 
@@ -227,7 +261,8 @@ export function runMonteCarlo(GROUPS, state, iterations = 2000) {
     // 1. Simular fixtures pendientes (mutar buffers in-place)
     for (const group of GROUPS) {
       for (const fix of pendingByGroup[group.id]) {
-        const { home, away } = simulateMatch(fix.home, fix.away);
+        const venue = STADIUM_COUNTRY[fix.stadium] ?? "USA";
+        const { home, away } = simulateMatch(fix.home, fix.away, venue);
         const slot    = pendBuf[group.id][fix.id];
         slot.home = String(home);
         slot.away = String(away);

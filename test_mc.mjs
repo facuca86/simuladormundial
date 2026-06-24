@@ -2,7 +2,7 @@
 // Ejecutar: node test_mc.mjs
 // Sin modificar lógica. Solo diagnóstico.
 
-import { runMonteCarlo, STRENGTH, simulateMatch } from './js/predictor.js';
+import { runMonteCarlo, STRENGTH, simulateMatch, STADIUM_COUNTRY } from './js/predictor.js';
 import {
   GROUP_A_FIXTURES, GROUP_B_FIXTURES, GROUP_C_FIXTURES,
   GROUP_D_FIXTURES, GROUP_E_FIXTURES, GROUP_F_FIXTURES,
@@ -317,7 +317,7 @@ if (intersection >= 2) {
 hr();
 console.log("CHECK 7 — BONO DE LOCALÍA (MEX, USA, CAN)");
 hr();
-const BASE = 1.2, ALPHA = 0.5;
+const BASE = 1.2, ALPHA = 0.6;
 
 // Comparar lambda del local con y sin bono para un equipo de igual fuerza
 // simulateMatch(homeCode, awayCode) → lambda_home = BASE * (sH/sA)^ALPHA * hostBonus
@@ -345,27 +345,53 @@ for (const { host, sH, rival, sA, label } of pairs) {
   if (lambdaHost <= lambdaNoBonus) bonusOk = false;
 }
 
-// Verificar en código fuente que HOSTS está definido correctamente
-console.log(`\n  Verificación de HOSTS en simulateMatch (confirmado en predictor.js línea 22):`);
-console.log(`    HOSTS = { MEX, USA, CAN } — los 3 países sede`);
-console.log(`    hostBonus = HOSTS.has(homeCode) ? 1.1 : 1.0`);
-console.log(`    ⚠️  El bono SOLO aplica cuando el anfitrión es homeCode (equipo local en el fixture).`);
-console.log(`       Ej: fix 53 "CZE vs MEX" → MEX es AWAY → MEX NO recibe bono en ese partido.`);
+// ── Fix 53: CZE(home) vs MEX(away) en Estadio Azteca ────────────────────────
+// Con el viejo código MEX (away) no recibía bono. Con el nuevo sí, porque
+// venueCountry = STADIUM_COUNTRY["Estadio Azteca, Ciudad de México"] = "MEX"
+// y MEX ∈ HOSTS → awayMult = 1.1.
+const fix53Stadium = "Estadio Azteca, Ciudad de México";
+const fix53Country = STADIUM_COUNTRY[fix53Stadium];
+console.log(`\n  Fix 53 — CZE(home) vs MEX(away) @ "${fix53Stadium}"`);
+console.log(`    venueCountry = STADIUM_COUNTRY["${fix53Stadium}"] = "${fix53Country}"`);
+
+// Simular 5000 veces sin y con venueCountry para estimar λ empírica
+let sumMexWithBonus = 0, sumMexNoBonus = 0;
+const SAMPLES = 5000;
+for (let k = 0; k < SAMPLES; k++) {
+  sumMexWithBonus += simulateMatch("CZE", "MEX", fix53Country).away;
+  sumMexNoBonus   += simulateMatch("CZE", "MEX", null).away;
+}
+const mexLambdaWithBonus = sumMexWithBonus / SAMPLES;
+const mexLambdaNoBonus   = sumMexNoBonus   / SAMPLES;
+const bonusGain = ((mexLambdaWithBonus / mexLambdaNoBonus) - 1) * 100;
+
+console.log(`    λ empírica MEX (away, SIN bono) = ${mexLambdaNoBonus.toFixed(4)}`);
+console.log(`    λ empírica MEX (away, CON bono) = ${mexLambdaWithBonus.toFixed(4)}`);
+console.log(`    Ganancia del bono: +${bonusGain.toFixed(1)}% (esperado ~+10%)`);
+
+const fix53Ok = bonusGain > 5 && bonusGain < 15 && fix53Country === "MEX";
+if (fix53Ok) {
+  ok(`Fix 53: MEX (away en Azteca) RECIBE el bono de localía. Ganancia empírica ≈${bonusGain.toFixed(1)}%.`);
+} else if (fix53Country !== "MEX") {
+  fail(`STADIUM_COUNTRY no mapea "${fix53Stadium}" → "MEX". Verificar la clave exacta.`);
+} else {
+  fail(`Ganancia del bono (${bonusGain.toFixed(1)}%) fuera del rango esperado ~10%. Revisar lógica.`);
+}
 
 // Comparar MEX vs TUR (fuerza similar, TUR=74 non-host, MEX=73 host) mismo rival
 const rivalStr = 73;
 const mexL = BASE * Math.pow(73 / rivalStr, ALPHA) * 1.1;
 const turL = BASE * Math.pow(74 / rivalStr, ALPHA) * 1.0;
-console.log(`\n  Ejemplo numérico — ambos vs oponente str=73:`);
-console.log(`    MEX (str=73, host) → λ = ${mexL.toFixed(4)}`);
-console.log(`    TUR (str=74, non-host, ligeramente más fuerte) → λ = ${turL.toFixed(4)}`);
+console.log(`\n  Ejemplo numérico (λ teórica) — ambos vs oponente str=73:`);
+console.log(`    MEX (str=73, ALPHA=${ALPHA}, hostBonus=1.1) → λ = ${mexL.toFixed(4)}`);
+console.log(`    TUR (str=74, ALPHA=${ALPHA}, sin bono)       → λ = ${turL.toFixed(4)}`);
 console.log(`    MEX ${mexL > turL ? 'supera' : 'NO supera'} a TUR gracias al bono de localía.`);
 
 if (bonusOk && mexL > turL) {
-  ok("MEX/USA/CAN reciben el bono (+10% λ home). MEX supera a TUR (str+1) gracias al bono.");
+  ok("MEX/USA/CAN reciben el bono (+10% λ). MEX supera a TUR (str+1) gracias al bono.");
 } else if (bonusOk) {
-  ok("El bono de localía se aplica correctamente, pero MEX (str=73) no supera a TUR (str=74+1).");
-  warn("El bono compensa pero no basta frente a equipos de mayor fuerza (1 pt de diferencia).");
+  ok("El bono de localía se aplica correctamente, pero MEX (str=73) no supera a TUR (str=74).");
+  warn("Con ALPHA=0.6 la diferencia de fuerza pesa más — el bono compensa pero no supera 1pt de str.");
 } else {
   fail("El bono de localía NO se está aplicando correctamente.");
 }
