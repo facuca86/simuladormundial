@@ -10,6 +10,8 @@ import { saveResults, loadResults, clearResults, loadResultsFromFirebase } from 
 import { buildBracket, refreshBracketSeeds, scaleBracketToFit, getBracketStats } from "./bracket.js";
 import { renderThirdsView } from "./thirds.js";
 import { renderHistoriaView } from "./historia.js";
+import { markCacheStale, predCache } from "./predictor.js";
+import { renderProbabilitiesView } from "./probabilities.js";
 
 // ─── Configuración de grupos ───────────────────────────────────────────────
 // Para agregar un nuevo grupo solo hay que añadir una entrada a este array.
@@ -136,10 +138,15 @@ function init() {
   initTabs();
   updateStatusBar();
   document.addEventListener("bracketUpdated", updateStatusBar);
+  // Cuando el predictor termina de simular, refrescar Prob% en todas las tablas
+  document.addEventListener("predictorUpdated", () => {
+    updateStaleNotice(false);
+    for (const group of GROUPS) updateProbColumn(group);
+  });
 }
 
 function initTabs() {
-  const TABS = ["groups", "thirds", "bracket", "historia"];
+  const TABS = ["groups", "thirds", "bracket", "historia", "probabilities"];
   document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("tab-btn--active"));
@@ -148,9 +155,10 @@ function initTabs() {
       TABS.forEach(t => document.getElementById(`phase-${t}`).classList.toggle("hidden", tab !== t));
       const banner = document.getElementById("champion-banner");
       if (banner) banner.classList.toggle("champion-banner--tab-hidden", tab !== "bracket");
-      if (tab === "bracket") { refreshBracketSeeds(getQualifiedTeams()); scaleBracketToFit(); }
-      if (tab === "thirds") renderThirdsView(document.getElementById("phase-thirds"), getQualifiedTeams());
-      if (tab === "historia") renderHistoriaView(document.getElementById("phase-historia"));
+      if (tab === "bracket")       { refreshBracketSeeds(getQualifiedTeams()); scaleBracketToFit(); }
+      if (tab === "thirds")        renderThirdsView(document.getElementById("phase-thirds"), getQualifiedTeams());
+      if (tab === "historia")      renderHistoriaView(document.getElementById("phase-historia"));
+      if (tab === "probabilities") renderProbabilitiesView(document.getElementById("phase-probabilities"), GROUPS, state);
     });
   });
 }
@@ -315,6 +323,7 @@ function buildStandingsTable(group) {
           <th title="Goles en Contra">GC</th>
           <th title="Diferencia de Gol">DG</th>
           <th title="Puntos">PTS</th>
+          <th title="Probabilidad de clasificar (simulación Monte Carlo)" class="prob-th">Prob%</th>
         </tr>
       </thead>
       <tbody id="standings-body-${group.id}"></tbody>
@@ -356,6 +365,9 @@ function updateStandingsDOM(group, container) {
     bestThirdCodes = new Set(thirds.slice(0, 8).map(t => t.team.code));
   }
 
+  const { result: probResult, stale: probStale } = predCache;
+  const freshProbs = probResult && !probStale;
+
   tbody.innerHTML = rows.map((row, idx) => {
     let cls;
     if (idx < 2) {
@@ -370,8 +382,14 @@ function updateStandingsDOM(group, container) {
       const alive = canStillQualify(row.team.code, group.teams, group.fixtures, state[group.id]);
       cls = !alive ? "eliminated" : "";
     }
+    const code = row.team.code;
+    let probStr = "–";
+    if (freshProbs && probResult[code]) {
+      const v = probResult[code].group;
+      probStr = v >= 0.995 ? "100%" : v < 0.001 ? "<0.1%" : (v * 100).toFixed(0) + "%";
+    }
     return `
-    <tr class="${cls}">
+    <tr class="${cls}" data-team-code="${code}">
       <td class="pos">${idx + 1}</td>
       <td class="team-cell">
         <span class="flag">${row.team.flag}</span>
@@ -385,6 +403,7 @@ function updateStandingsDOM(group, container) {
       <td>${row.gc}</td>
       <td>${row.dg >= 0 ? "+" : ""}${row.dg}</td>
       <td class="pts">${row.pts}</td>
+      <td class="prob-cell">${probStr}</td>
     </tr>
   `;
   }).join("");
@@ -410,6 +429,46 @@ function handleScoreChange(group, fixtureId, homeInput, awayInput) {
   refreshBracketSeeds(qualified);
   renderThirdsView(document.getElementById("phase-thirds"), qualified);
   updateStatusBar();
+
+  // Marcar predicciones como desactualizadas (sin recalcular)
+  if (predCache.result !== null) {
+    markCacheStale();
+    updateStaleNotice(true);
+  }
+  // Actualizar columna Prob en standings (mostrará "–" porque hay stale/vacío)
+  updateProbColumn(group);
+}
+
+function updateStaleNotice(show) {
+  const notice = document.getElementById("stale-notice");
+  if (!notice) return;
+  if (show) {
+    notice.textContent = "⚠ Predicciones desactualizadas — ve a la pestaña Probabilidades y volvé a simular.";
+    notice.classList.remove("hidden");
+  } else {
+    notice.classList.add("hidden");
+  }
+}
+
+// Actualiza la columna de prob% en la tabla de posiciones de un grupo.
+function updateProbColumn(group) {
+  const tbody = document.querySelector(`#standings-body-${group.id}`);
+  if (!tbody) return;
+  const { result, stale } = predCache;
+  const fresh = result && !stale;
+  tbody.querySelectorAll("tr").forEach(tr => {
+    const cell = tr.querySelector(".prob-cell");
+    if (!cell) return;
+    const code = tr.dataset.teamCode;
+    if (!code || !fresh || !result[code]) { cell.textContent = "–"; return; }
+    const v = result[code].group;
+    cell.textContent = v >= 0.995 ? "100%" : v < 0.001 ? "<0.1%" : (v * 100).toFixed(0) + "%";
+  });
+}
+
+// Actualiza la columna prob% en todos los grupos.
+export function refreshAllProbColumns() {
+  for (const group of GROUPS) updateProbColumn(group);
 }
 
 // ─── Reinicio ──────────────────────────────────────────────────────────────
@@ -428,6 +487,8 @@ function resetGroup(group) {
   refreshBracketSeeds(qualified);
   renderThirdsView(document.getElementById("phase-thirds"), qualified);
   updateStatusBar();
+  if (predCache.result !== null) { markCacheStale(); updateStaleNotice(true); }
+  updateProbColumn(group);
 }
 
 // ─── Exportación de resultados ─────────────────────────────────────────────
