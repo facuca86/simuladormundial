@@ -20,13 +20,20 @@ export const STRENGTH = {
 
 // ─── Parámetros del ajuste bayesiano (fáciles de tunear) ─────────────────────
 //
-// LEARNING_RATE: puntos de fuerza por gol de "sorpresa" antes del blend.
-//   Sube → ajuste más agresivo. Con 2.0, rango típico ≈ ±2–8 pts con 2 partidos.
+// LEARNING_RATE: puntos de fuerza por unidad de sorpresa híbrida antes del blend.
 // BLEND: peso de la fuerza ajustada en la mezcla final con la base.
-//   0.0 = ignorar resultados (solo base), 1.0 = solo resultados.
 //   0.55 → moderado: los resultados importan pero el ranking previo pesa ~45%.
+// W_GOLES / W_RESULTADO: pesos del componente de goles vs. resultado en la
+//   sorpresa híbrida (deben sumar 1). 0.5/0.5 = 50 % cada uno.
+// GOALS_SCALE: divisor para normalizar la sorpresa de goles al mismo orden de
+//   magnitud que la sorpresa de resultado (escala [0,1]). Igual a los goles
+//   esperados por equipo por partido (≈ 1.5), así (goles − λ)×peso / 1.5 ≈ ±1
+//   para un partido típico, comparable con resultado_real − P(resultado).
 export const LEARNING_RATE     = 2.0;
 export const BLEND             = 0.55;
+export const W_GOLES           = 0.5;
+export const W_RESULTADO       = 0.5;
+export const GOALS_SCALE       = 1.5;
 const        STRENGTH_CLAMP_MIN = 40;
 const        STRENGTH_CLAMP_MAX = 99;
 
@@ -56,15 +63,57 @@ export const STADIUM_COUNTRY = {
   "Lumen Field, Seattle":                "USA",
 };
 
+// ─── Helpers para P(victoria/empate/derrota) vía Poisson bivariante ──────────
+// Método: distribución de Poisson bivariante independiente (Dixon & Coles 1997).
+// Suma directa truncada a _MAX_G: error < 0.3 % para λ ≤ 4 (típico en fútbol).
+
+const _LOG_FACT = (() => {
+  const t = [0];
+  for (let i = 1; i <= 20; i++) t.push(t[i - 1] + Math.log(i));
+  return t;
+})();
+
+// P(X = k) para X ~ Poisson(λ), log-sum para estabilidad numérica.
+function _poissonPMF(lambda, k) {
+  if (k < 0 || k > 20 || lambda <= 0) return 0;
+  return Math.exp(-lambda + k * Math.log(lambda) - _LOG_FACT[k]);
+}
+
+const _MAX_G = 8;  // truncar la suma en 8 goles por equipo
+
+// Devuelve { pWin, pDraw } para el equipo home dado λH y λA.
+// pLoss = 1 − pWin − pDraw. Renormaliza por la masa capturada en la grilla.
+function _matchOutcomeProbs(lambdaH, lambdaA) {
+  let pWin = 0, pDraw = 0, mass = 0;
+  for (let h = 0; h <= _MAX_G; h++) {
+    const pH = _poissonPMF(lambdaH, h);
+    for (let a = 0; a <= _MAX_G; a++) {
+      const joint = pH * _poissonPMF(lambdaA, a);
+      mass += joint;
+      if      (h > a) pWin  += joint;
+      else if (h === a) pDraw += joint;
+    }
+  }
+  return { pWin: pWin / mass, pDraw: pDraw / mass };
+}
+
 // ─── Ajuste bayesiano de fuerzas ─────────────────────────────────────────────
 /**
- * Recalibra las fuerzas de los equipos según los partidos YA jugados en state.
- * Cada partido contribuye con una "sorpresa" (goles reales − esperados) que
- * ajusta iterativamente las fuerzas; al final se mezclan con la base (BLEND)
- * para que el ranking previo siga pesando.
+ * Recalibra las fuerzas usando un modelo HÍBRIDO: sorpresa por goles + por resultado.
  *
- * Llamar UNA VEZ antes del loop Monte Carlo — los partidos jugados no cambian
- * entre iteraciones, así que recalcular dentro del loop sería incorrecto y caro.
+ * Para cada partido jugado calcula:
+ *   1. Sorpresa por goles (normalizada): (goles_real − λ) × peso_contundencia / GOALS_SCALE
+ *      - λ = goles esperados según el motor Poisson con fuerzas actuales.
+ *      - peso = 1 + |margen| × 0.2 (un 4-0 mueve más que un 1-0).
+ *      - GOALS_SCALE ≈ goles esperados por equipo (≈ 1.5) → escala comparable a [0,1].
+ *   2. Sorpresa por resultado: outcome_real − outcome_esperado
+ *      - outcome: victoria=1, empate=0.5, derrota=0 (escala Points Share).
+ *      - P(victoria/empate/derrota) via Poisson bivariante truncada (_matchOutcomeProbs).
+ *      - Ganarle a un favorito (P_victoria baja) genera sorpresa positiva grande.
+ *   Total: W_GOLES × sorpresaGoles + W_RESULTADO × sorpresaResultado
+ *
+ * Al final: mezcla con la base (BLEND) y clamp [40,99].
+ * Llamar UNA VEZ antes del loop Monte Carlo.
  *
  * @param {Object[]} GROUPS        - Array de grupos { id, teams, fixtures }
  * @param {Object}   state         - { groupId: { fixtureId: { home, away } } }
@@ -72,11 +121,7 @@ export const STADIUM_COUNTRY = {
  * @returns {Object} STRENGTH_ADJ  - Fuerzas ajustadas por código de equipo
  */
 export function recalibrateStrengths(GROUPS, state, STRENGTH_BASE) {
-  // Copia mutable: se actualiza iterativamente partido a partido.
-  // Usar fuerzas "actuales" (no la base) para calcular los goles esperados de
-  // cada partido → las actualizaciones de partidos anteriores influyen en los siguientes.
   const adj = { ...STRENGTH_BASE };
-
   const BASE = 1.2, ALPHA = 0.6;
 
   for (const group of GROUPS) {
@@ -88,7 +133,7 @@ export function recalibrateStrengths(GROUPS, state, STRENGTH_BASE) {
       const actualA = parseInt(r.away, 10);
       if (isNaN(actualH) || isNaN(actualA)) continue;
 
-      // Goles esperados con las fuerzas ACTUALES del momento del partido
+      // Goles esperados con las fuerzas ACTUALES (las actualizaciones anteriores influyen)
       const sH = adj[fix.home] ?? 65;
       const sA = adj[fix.away] ?? 65;
       const venue    = STADIUM_COUNTRY[fix.stadium] ?? "USA";
@@ -98,16 +143,30 @@ export function recalibrateStrengths(GROUPS, state, STRENGTH_BASE) {
       const lambdaH  = BASE * Math.pow(ratio,     ALPHA) * homeMult;
       const lambdaA  = BASE * Math.pow(1 / ratio, ALPHA) * awayMult;
 
-      // Sorpresa simétrica: positiva → rindió mejor de lo esperado en goles
-      const surpriseH = actualH - lambdaH;
-      const surpriseA = actualA - lambdaA;
-
-      // Peso por contundencia: un 4-0 mueve más que un 1-0
+      // ── Componente 1: sorpresa por goles (normalizada a escala [0,1]) ──────
+      // Dividir por GOALS_SCALE lleva (goles − λ)×peso al rango ≈ ±1,
+      // comparable con la sorpresa de resultado que también vive en [−1,+1].
       const margin = Math.abs(actualH - actualA);
       const weight = 1 + margin * 0.2;
+      const goalsH = (actualH - lambdaH) * weight / GOALS_SCALE;
+      const goalsA = (actualA - lambdaA) * weight / GOALS_SCALE;
 
-      adj[fix.home] += LEARNING_RATE * surpriseH * weight;
-      adj[fix.away] += LEARNING_RATE * surpriseA * weight;
+      // ── Componente 2: sorpresa por resultado ──────────────────────────────
+      // outcome_esperado = P(win)×1 + P(draw)×0.5 + P(loss)×0
+      const { pWin, pDraw } = _matchOutcomeProbs(lambdaH, lambdaA);
+      const expH = pWin + 0.5 * pDraw;       // outcome esperado para home ∈ (0,1)
+      const expA = (1 - pWin - pDraw) + 0.5 * pDraw;  // = 1 − expH
+      const realH = actualH > actualA ? 1.0 : actualH === actualA ? 0.5 : 0.0;
+      const realA = 1.0 - realH;             // simétrico: realH + realA = 1
+      const resultH = realH - expH;
+      const resultA = realA - expA;
+
+      // ── Sorpresa híbrida total ─────────────────────────────────────────────
+      const surpriseH = W_GOLES * goalsH + W_RESULTADO * resultH;
+      const surpriseA = W_GOLES * goalsA + W_RESULTADO * resultA;
+
+      adj[fix.home] += LEARNING_RATE * surpriseH;
+      adj[fix.away] += LEARNING_RATE * surpriseA;
     }
   }
 
@@ -285,11 +344,14 @@ export function markCacheStale() {
 }
 
 // ─── Motor principal Monte Carlo ──────────────────────────────────────────────
-export function runMonteCarlo(GROUPS, state, iterations = 2000) {
+// strengthOverride: si se pasa un objeto de fuerzas pre-calculado (e.g. para
+// comparaciones en tests), se usa en lugar de llamar recalibrateStrengths.
+// En uso normal (UI y tests de invariantes) se deja en null → calibración híbrida.
+export function runMonteCarlo(GROUPS, state, iterations = 2000, strengthOverride = null) {
   // ── Ajuste bayesiano de fuerzas (UNA vez, fuera del loop) ────────────────
   // Depende solo de los partidos jugados (que no cambian entre iteraciones).
   // Los pendientes se simulan con estas fuerzas ya recalibradas.
-  const STRENGTH_ADJ = recalibrateStrengths(GROUPS, state, STRENGTH);
+  const STRENGTH_ADJ = strengthOverride ?? recalibrateStrengths(GROUPS, state, STRENGTH);
 
   // ── Pre-procesar fixtures ────────────────────────────────────────────────
   const fixedResults   = {};  // groupId → { fixtureId → {home, away} }

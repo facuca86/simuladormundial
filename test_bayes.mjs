@@ -1,4 +1,4 @@
-// test_bayes.mjs — Validación del ajuste bayesiano de fuerzas (LEARNING_RATE / BLEND)
+// test_bayes.mjs — Validación del ajuste bayesiano HÍBRIDO (goles + resultado)
 // Uso: node test_bayes.mjs
 //
 // Cubre las 5 invariantes:
@@ -12,8 +12,12 @@ import {
   runMonteCarlo,
   recalibrateStrengths,
   STRENGTH,
+  STADIUM_COUNTRY,
   LEARNING_RATE,
   BLEND,
+  W_GOLES,
+  W_RESULTADO,
+  GOALS_SCALE,
 } from "./js/predictor.js";
 import {
   GROUP_A_FIXTURES, GROUP_B_FIXTURES, GROUP_C_FIXTURES,
@@ -37,167 +41,142 @@ const GROUPS = [
   { id: "groupL", label: "L", teams: ["ENG","CRO","GHA","PAN"], fixtures: GROUP_L_FIXTURES },
 ];
 
-// ─── Estado con resultados de Jornada 1 y 2 ───────────────────────────────────
-// Narrativa diseñada para probar el ajuste bayesiano con resultados interesantes:
-//   • Grupo A: MEX (2W) y CZE (2W) tienen 6pts → clasificados con 100%  [Invariante 4]
-//   • Grupo C: BRA pierde 1-2 contra MAR  [gran sorpresa bajista para BRA]
-//   • Grupo G: BEL pierde 0-1 contra EGY  [sorpresa; BEL rebota 3-0 vs IRN]
-//   • Grupo I: IRQ 0-4 NOR               [NOR sube drásticamente]
-//   • Grupo J: ARG 4-0 ALG               [ARG muy dominante]
-//   • Grupo E: GER 5-0 CUW               [GER dominante; CUW cae]
+// ─── Resultados Jornadas 1 y 2 ────────────────────────────────────────────────
+// Narrativa con casos interesantes para el ajuste híbrido.
 const stateWithResults = {
-  // Grupo A — fixture IDs: 1(M1 MEX-RSA), 2(M1 KOR-CZE), 25(M2 CZE-RSA), 28(M2 MEX-KOR)
-  groupA: {
-    1:  { home: "2", away: "0" },  // MEX 2-0 RSA   (esperado, MEX en casa)
-    2:  { home: "0", away: "2" },  // KOR 0-2 CZE   (CZE gana fuera — sorpresa leve)
-    25: { home: "2", away: "0" },  // CZE 2-0 RSA   (esperado)
-    28: { home: "2", away: "0" },  // MEX 2-0 KOR   (esperado, MEX en casa)
-  },
-  // Grupo B — fixture IDs: 3(M1 CAN-BIH), 8(M1 QAT-SUI), 26(M2 SUI-BIH), 27(M2 CAN-QAT)
-  groupB: {
-    3:  { home: "2", away: "0" },  // CAN 2-0 BIH
-    8:  { home: "0", away: "3" },  // QAT 0-3 SUI   (SUI muy dominante)
-    26: { home: "3", away: "0" },  // SUI 3-0 BIH
-    27: { home: "2", away: "1" },  // CAN 2-1 QAT
-  },
-  // Grupo C — fixture IDs: 7(M1 BRA-MAR), 5(M1 HAI-SCO), 29(M2 BRA-HAI), 30(M2 SCO-MAR)
-  groupC: {
-    7:  { home: "1", away: "2" },  // BRA 1-2 MAR   *** SORPRESA: MAR gana en NJ ***
-    5:  { home: "0", away: "3" },  // HAI 0-3 SCO   (SCO supera expectativas)
-    29: { home: "4", away: "0" },  // BRA 4-0 HAI   (BRA rebota con autoridad)
-    30: { home: "0", away: "1" },  // SCO 0-1 MAR   (MAR consistente)
-  },
-  // Grupo D — fixture IDs: 4(M1 USA-PAR), 6(M1 AUS-TUR), 31(M2 TUR-PAR), 32(M2 USA-AUS)
-  groupD: {
-    4:  { home: "2", away: "0" },  // USA 2-0 PAR
-    6:  { home: "0", away: "2" },  // AUS 0-2 TUR   (TUR supera)
-    31: { home: "2", away: "1" },  // TUR 2-1 PAR
-    32: { home: "1", away: "0" },  // USA 1-0 AUS
-  },
-  // Grupo E — fixture IDs: 9(M1 GER-CUW), 10(M1 CIV-ECU), 33(M2 GER-CIV), 34(M2 ECU-CUW)
-  groupE: {
-    9:  { home: "5", away: "0" },  // GER 5-0 CUW   *** GER muy dominante ***
-    10: { home: "0", away: "2" },  // CIV 0-2 ECU   (ECU sorprende de visitante)
-    33: { home: "2", away: "1" },  // GER 2-1 CIV
-    34: { home: "4", away: "0" },  // ECU 4-0 CUW
-  },
-  // Grupo F — fixture IDs: 11(M1 NED-JPN), 12(M1 SWE-TUN), 35(M2 NED-SWE), 36(M2 TUN-JPN)
-  groupF: {
-    11: { home: "1", away: "0" },  // NED 1-0 JPN
-    12: { home: "2", away: "0" },  // SWE 2-0 TUN
-    35: { home: "2", away: "0" },  // NED 2-0 SWE
-    36: { home: "0", away: "3" },  // TUN 0-3 JPN   *** JPN dominante inesperado ***
-  },
-  // Grupo G — fixture IDs: 16(M1 BEL-EGY), 15(M1 IRN-NZL), 39(M2 BEL-IRN), 40(M2 NZL-EGY)
-  groupG: {
-    16: { home: "0", away: "1" },  // BEL 0-1 EGY   *** SORPRESA: EGY gana ***
-    15: { home: "2", away: "0" },  // IRN 2-0 NZL
-    39: { home: "3", away: "0" },  // BEL 3-0 IRN   (BEL rebota)
-    40: { home: "0", away: "2" },  // NZL 0-2 EGY   (EGY consistente)
-  },
-  // Grupo H — fixture IDs: 14(M1 ESP-CPV), 13(M1 KSA-URU), 38(M2 ESP-KSA), 37(M2 URU-CPV)
-  groupH: {
-    14: { home: "3", away: "0" },  // ESP 3-0 CPV
-    13: { home: "0", away: "2" },  // KSA 0-2 URU
-    38: { home: "2", away: "0" },  // ESP 2-0 KSA
-    37: { home: "2", away: "0" },  // URU 2-0 CPV
-  },
-  // Grupo I — fixture IDs: 17(M1 FRA-SEN), 18(M1 IRQ-NOR), 42(M2 FRA-IRQ), 41(M2 NOR-SEN)
-  groupI: {
-    17: { home: "1", away: "0" },  // FRA 1-0 SEN   (ajustado, FRA esperaba más)
-    18: { home: "0", away: "4" },  // IRQ 0-4 NOR   *** SORPRESA MASIVA: NOR ***
-    42: { home: "3", away: "0" },  // FRA 3-0 IRQ
-    41: { home: "2", away: "1" },  // NOR 2-1 SEN
-  },
-  // Grupo J — fixture IDs: 19(M1 ARG-ALG), 20(M1 AUT-JOR), 43(M2 ARG-AUT), 44(M2 JOR-ALG)
-  groupJ: {
-    19: { home: "4", away: "0" },  // ARG 4-0 ALG   *** ARG muy dominante ***
-    20: { home: "2", away: "0" },  // AUT 2-0 JOR
-    43: { home: "2", away: "0" },  // ARG 2-0 AUT
-    44: { home: "0", away: "2" },  // JOR 0-2 ALG
-  },
-  // Grupo K — fixture IDs: 23(M1 POR-COD), 24(M1 UZB-COL), 47(M2 POR-UZB), 48(M2 COL-COD)
-  groupK: {
-    23: { home: "2", away: "0" },  // POR 2-0 COD
-    24: { home: "0", away: "3" },  // UZB 0-3 COL
-    47: { home: "3", away: "0" },  // POR 3-0 UZB
-    48: { home: "2", away: "0" },  // COL 2-0 COD
-  },
-  // Grupo L — fixture IDs: 22(M1 ENG-CRO), 21(M1 GHA-PAN), 45(M2 ENG-GHA), 46(M2 PAN-CRO)
-  groupL: {
-    22: { home: "3", away: "0" },  // ENG 3-0 CRO   (ENG supera expectativas)
-    21: { home: "1", away: "0" },  // GHA 1-0 PAN
-    45: { home: "2", away: "0" },  // ENG 2-0 GHA
-    46: { home: "0", away: "2" },  // PAN 0-2 CRO
-  },
+  groupA: { 1:{home:"2",away:"0"}, 2:{home:"0",away:"2"}, 25:{home:"2",away:"0"}, 28:{home:"2",away:"0"} },
+  groupB: { 3:{home:"2",away:"0"}, 8:{home:"0",away:"3"}, 26:{home:"3",away:"0"}, 27:{home:"2",away:"1"} },
+  groupC: { 7:{home:"1",away:"2"}, 5:{home:"0",away:"3"}, 29:{home:"4",away:"0"}, 30:{home:"0",away:"1"} },
+  groupD: { 4:{home:"2",away:"0"}, 6:{home:"0",away:"2"}, 31:{home:"2",away:"1"}, 32:{home:"1",away:"0"} },
+  groupE: { 9:{home:"5",away:"0"}, 10:{home:"0",away:"2"}, 33:{home:"2",away:"1"}, 34:{home:"4",away:"0"} },
+  groupF: { 11:{home:"1",away:"0"}, 12:{home:"2",away:"0"}, 35:{home:"2",away:"0"}, 36:{home:"0",away:"3"} },
+  groupG: { 16:{home:"0",away:"1"}, 15:{home:"2",away:"0"}, 39:{home:"3",away:"0"}, 40:{home:"0",away:"2"} },
+  groupH: { 14:{home:"3",away:"0"}, 13:{home:"0",away:"2"}, 38:{home:"2",away:"0"}, 37:{home:"2",away:"0"} },
+  groupI: { 17:{home:"1",away:"0"}, 18:{home:"0",away:"4"}, 42:{home:"3",away:"0"}, 41:{home:"2",away:"1"} },
+  groupJ: { 19:{home:"4",away:"0"}, 20:{home:"2",away:"0"}, 43:{home:"2",away:"0"}, 44:{home:"0",away:"2"} },
+  groupK: { 23:{home:"2",away:"0"}, 24:{home:"0",away:"3"}, 47:{home:"3",away:"0"}, 48:{home:"2",away:"0"} },
+  groupL: { 22:{home:"3",away:"0"}, 21:{home:"1",away:"0"}, 45:{home:"2",away:"0"}, 46:{home:"0",away:"2"} },
 };
 
-// Estado vacío: sin resultados → recalibrateStrengths devuelve STRENGTH sin cambios
 const stateEmpty = {};
 for (const g of GROUPS) stateEmpty[g.id] = {};
 
+const HOSTS = new Set(["MEX", "USA", "CAN"]);
+
+// ─── Reimplementación local de calibración "solo goles" (para comparar) ───────
+// Igual al modelo anterior sin el componente de resultado.
+function soloGolesCalibrate(GROUPS, state, STRENGTH_BASE) {
+  const adj = { ...STRENGTH_BASE };
+  const BASE = 1.2, ALPHA = 0.6;
+  for (const group of GROUPS) {
+    const gs = state[group.id] || {};
+    for (const fix of group.fixtures) {
+      const r = gs[fix.id];
+      if (!r || r.home === "" || r.away === "") continue;
+      const actualH = parseInt(r.home, 10);
+      const actualA = parseInt(r.away, 10);
+      if (isNaN(actualH) || isNaN(actualA)) continue;
+      const sH = adj[fix.home] ?? 65;
+      const sA = adj[fix.away] ?? 65;
+      const venue    = STADIUM_COUNTRY[fix.stadium] ?? "USA";
+      const homeMult = (HOSTS.has(fix.home) && venue === fix.home) ? 1.1 : 1.0;
+      const awayMult = (HOSTS.has(fix.away) && venue === fix.away) ? 1.1 : 1.0;
+      const ratio    = sH / sA;
+      const lambdaH  = BASE * Math.pow(ratio,     ALPHA) * homeMult;
+      const lambdaA  = BASE * Math.pow(1 / ratio, ALPHA) * awayMult;
+      const margin = Math.abs(actualH - actualA);
+      const weight = 1 + margin * 0.2;
+      adj[fix.home] += LEARNING_RATE * (actualH - lambdaH) * weight;
+      adj[fix.away] += LEARNING_RATE * (actualA - lambdaA) * weight;
+    }
+  }
+  const result = {};
+  for (const code of Object.keys(STRENGTH_BASE)) {
+    const blended = BLEND * adj[code] + (1 - BLEND) * STRENGTH_BASE[code];
+    result[code] = Math.min(99, Math.max(40, blended));
+  }
+  return result;
+}
+
 const ITERS = 10_000;
 
-// ─── 1. Tabla de fuerzas ajustadas ───────────────────────────────────────────
+// ─── 1. Calcular fuerzas con ambos modelos ────────────────────────────────────
 console.log("═══════════════════════════════════════════════════════════════════");
-console.log(`  Ajuste bayesiano  LEARNING_RATE=${LEARNING_RATE}  BLEND=${BLEND}`);
+console.log(`  Ajuste híbrido  LR=${LEARNING_RATE}  BLEND=${BLEND}  W_G=${W_GOLES}  W_R=${W_RESULTADO}  GS=${GOALS_SCALE}`);
 console.log("═══════════════════════════════════════════════════════════════════\n");
 
-const STRENGTH_ADJ = recalibrateStrengths(GROUPS, stateWithResults, STRENGTH);
+const adjGoals  = soloGolesCalibrate(GROUPS, stateWithResults, STRENGTH);
+const adjHybrid = recalibrateStrengths(GROUPS, stateWithResults, STRENGTH);
 
-const deltas = Object.entries(STRENGTH).map(([code, base]) => ({
-  code,
-  base,
-  adj: STRENGTH_ADJ[code],
-  delta: STRENGTH_ADJ[code] - base,
-}));
-deltas.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+// ─── 2. Tabla comparativa para equipos clave ──────────────────────────────────
+const KEY_TEAMS = ["MAR","BRA","EGY","BEL","GER","ECU","NOR","ARG","ENG","SUI","JPN","CUW","IRQ"];
 
-console.log("Tabla de fuerzas ajustadas (ordenada por |delta|):");
-console.log("  Código  Base   Ajust  Delta   Narrativa");
-console.log("  ──────  ─────  ─────  ──────  ──────────────────────────────");
-for (const { code, base, adj, delta } of deltas) {
-  if (Math.abs(delta) < 0.05) continue;  // omitir equipos sin partidos jugados
-  const arrow   = delta > 0 ? "▲" : "▼";
-  const sign    = delta > 0 ? "+" : "";
+console.log("Tabla comparativa: Base | Solo-goles | Híbrido — equipos clave");
+console.log("  Eq.    Base   Solo-G  Δ-G    Híbrido  Δ-H    Dif(H−G)");
+console.log("  ─────────────────────────────────────────────────────────────");
+for (const code of KEY_TEAMS) {
+  const base   = STRENGTH[code];
+  const sg     = adjGoals[code];
+  const hy     = adjHybrid[code];
+  const deltaG = sg - base;
+  const deltaH = hy - base;
+  const diff   = deltaH - deltaG;
+  const signG  = deltaG >= 0 ? "+" : "";
+  const signH  = deltaH >= 0 ? "+" : "";
+  const signD  = diff >= 0 ? "+" : "";
   console.log(
-    `  ${code.padEnd(6)}  ${base.toFixed(0).padStart(5)}  ${adj.toFixed(1).padStart(5)}  ${sign}${delta.toFixed(1).padStart(5)}  ${arrow}`
+    `  ${code.padEnd(6)} ${base.toFixed(0).padStart(4)}   ${sg.toFixed(1).padStart(6)}` +
+    `  ${signG}${deltaG.toFixed(1).padStart(5)}  ${hy.toFixed(1).padStart(6)}` +
+    `  ${signH}${deltaH.toFixed(1).padStart(5)}  ${signD}${diff.toFixed(1).padStart(5)}`
   );
 }
 
-// Verificar que ningún delta sea absurdo (> ±15 con solo 2 partidos)
-const maxDelta = Math.max(...deltas.map(d => Math.abs(d.delta)));
-console.log(`\nDelta máximo absoluto: ${maxDelta.toFixed(2)} pts`);
-const absurdThreshold = 15;
-if (maxDelta > absurdThreshold) {
-  console.error(`  ADVERTENCIA: delta ${maxDelta.toFixed(1)} supera umbral ${absurdThreshold} — revisar LEARNING_RATE`);
-} else {
-  console.log(`  OK — ningún equipo se movió más de ${absurdThreshold} puntos (umbral razonable).`);
+// ─── 3. Tabla completa ordenada por |delta híbrido| ──────────────────────────
+console.log("\nTodos los equipos ordenados por |Δ-híbrido|:");
+console.log("  Código  Base   Híbrido  Δ-H");
+console.log("  ──────  ─────  ───────  ──────");
+const allDeltas = Object.entries(STRENGTH).map(([code, base]) => ({
+  code, base, adj: adjHybrid[code], delta: adjHybrid[code] - base
+})).sort((a,b) => Math.abs(b.delta) - Math.abs(a.delta));
+
+for (const { code, base, adj, delta } of allDeltas) {
+  if (Math.abs(delta) < 0.05) continue;
+  const sign = delta >= 0 ? "+" : "";
+  const arrow = delta >= 0 ? "▲" : "▼";
+  console.log(`  ${code.padEnd(6)}  ${base.toFixed(0).padStart(5)}  ${adj.toFixed(1).padStart(6)}  ${sign}${delta.toFixed(1).padStart(5)}  ${arrow}`);
 }
 
-// ─── 2. Corridas Monte Carlo ──────────────────────────────────────────────────
+const maxDelta = Math.max(...allDeltas.map(d => Math.abs(d.delta)));
+console.log(`\nDelta máximo absoluto (híbrido): ±${maxDelta.toFixed(2)} pts`);
+if (maxDelta > 15) {
+  console.error("  ADVERTENCIA: delta supera 15 pts — revisar parámetros");
+} else {
+  console.log("  OK — ningún equipo se movió más de 15 pts.");
+}
+
+// ─── 4. Corridas Monte Carlo ──────────────────────────────────────────────────
 console.log(`\n${"─".repeat(67)}`);
-console.log(`Corrida BASE (sin resultados, ${ITERS.toLocaleString()} iters)...`);
+console.log(`Corrida SOLO-GOLES (${ITERS.toLocaleString()} iters)...`);
 const t0 = performance.now();
-const probsBase = runMonteCarlo(GROUPS, stateEmpty, ITERS);
+const probsGoals = runMonteCarlo(GROUPS, stateWithResults, ITERS, adjGoals);
 console.log(`  Tiempo: ${(performance.now() - t0).toFixed(0)} ms`);
 
-console.log(`\nCorrida CON AJUSTE BAYESIANO (Jornadas 1+2 cargadas, ${ITERS.toLocaleString()} iters)...`);
+console.log(`\nCorrida HÍBRIDA (${ITERS.toLocaleString()} iters)...`);
 const t1 = performance.now();
-const probsAdj = runMonteCarlo(GROUPS, stateWithResults, ITERS);
+const probsHybrid = runMonteCarlo(GROUPS, stateWithResults, ITERS, adjHybrid);
 console.log(`  Tiempo: ${(performance.now() - t1).toFixed(0)} ms`);
 
-// ─── 3. Invariante 1: suma campeón ≈ 1.0 ─────────────────────────────────────
+// ─── 5. Invariante 1: suma campeón ≈ 1.0 ─────────────────────────────────────
 console.log(`\n${"─".repeat(67)}`);
 console.log("INVARIANTE 1: suma P(campeón) ≈ 1.0");
-const champSum = Object.values(probsAdj).reduce((s, p) => s + p.champion, 0);
+const champSum = Object.values(probsHybrid).reduce((s, p) => s + p.champion, 0);
 const inv1ok = Math.abs(champSum - 1.0) < 0.01;
 console.log(`  Suma: ${champSum.toFixed(5)}  → ${inv1ok ? "OK ✓" : "FALLO ✗"}`);
 
-// ─── 4. Invariante 2: embudo monotónico ──────────────────────────────────────
-console.log("\nINVARIANTE 2: embudo monotónico (campeón ≤ final ≤ semi ≤ cuartos ≤ clasifica)");
+// ─── 6. Invariante 2: embudo monotónico ──────────────────────────────────────
+console.log("\nINVARIANTE 2: embudo monotónico");
 let inv2ok = true;
-for (const [code, p] of Object.entries(probsAdj)) {
+for (const [code, p] of Object.entries(probsHybrid)) {
   if (p.champion > p.final + 0.001 || p.final > p.sf + 0.001 ||
       p.sf > p.qf + 0.001 || p.qf > p.group + 0.001) {
     console.error(`  INCONSISTENCIA para ${code}:`, p);
@@ -206,83 +185,87 @@ for (const [code, p] of Object.entries(probsAdj)) {
 }
 console.log(`  ${inv2ok ? "OK ✓ — todos los 48 equipos son monotónicos" : "FALLO ✗"}`);
 
-// ─── 5. Invariante 3: sumas exactas por ronda ────────────────────────────────
+// ─── 7. Invariante 3: sumas por ronda ────────────────────────────────────────
 console.log("\nINVARIANTE 3: sumas por ronda deben ser exactamente 32/8/4/2/1");
-const sumGroup    = Object.values(probsAdj).reduce((s, p) => s + p.group, 0);
-const sumQF       = Object.values(probsAdj).reduce((s, p) => s + p.qf, 0);
-const sumSF       = Object.values(probsAdj).reduce((s, p) => s + p.sf, 0);
-const sumFinal    = Object.values(probsAdj).reduce((s, p) => s + p.final, 0);
-const sumChampion = Object.values(probsAdj).reduce((s, p) => s + p.champion, 0);
-const tol = 0.01;
-const inv3ok = (
-  Math.abs(sumGroup - 32) < tol &&
-  Math.abs(sumQF    -  8) < tol &&
-  Math.abs(sumSF    -  4) < tol &&
-  Math.abs(sumFinal -  2) < tol &&
-  Math.abs(sumChampion - 1) < tol
-);
-console.log(`  Clasifica: ${sumGroup.toFixed(3)}  (target 32)  ${Math.abs(sumGroup-32)<tol?"✓":"✗"}`);
-console.log(`  Cuartos:   ${sumQF.toFixed(3)}   (target  8)  ${Math.abs(sumQF-8)<tol?"✓":"✗"}`);
-console.log(`  Semis:     ${sumSF.toFixed(3)}   (target  4)  ${Math.abs(sumSF-4)<tol?"✓":"✗"}`);
-console.log(`  Final:     ${sumFinal.toFixed(3)}   (target  2)  ${Math.abs(sumFinal-2)<tol?"✓":"✗"}`);
-console.log(`  Campeón:   ${sumChampion.toFixed(3)}   (target  1)  ${Math.abs(sumChampion-1)<tol?"✓":"✗"}`);
+const sumG  = Object.values(probsHybrid).reduce((s,p)=>s+p.group,0);
+const sumQF = Object.values(probsHybrid).reduce((s,p)=>s+p.qf,0);
+const sumSF = Object.values(probsHybrid).reduce((s,p)=>s+p.sf,0);
+const sumF  = Object.values(probsHybrid).reduce((s,p)=>s+p.final,0);
+const sumC  = Object.values(probsHybrid).reduce((s,p)=>s+p.champion,0);
+const tol   = 0.01;
+const inv3ok = Math.abs(sumG-32)<tol && Math.abs(sumQF-8)<tol &&
+               Math.abs(sumSF-4)<tol && Math.abs(sumF-2)<tol && Math.abs(sumC-1)<tol;
+console.log(`  Clasifica:${sumG.toFixed(3).padStart(7)}  (32) ${Math.abs(sumG-32)<tol?"✓":"✗"}`);
+console.log(`  Cuartos:  ${sumQF.toFixed(3).padStart(7)}  ( 8) ${Math.abs(sumQF-8)<tol?"✓":"✗"}`);
+console.log(`  Semis:    ${sumSF.toFixed(3).padStart(7)}  ( 4) ${Math.abs(sumSF-4)<tol?"✓":"✗"}`);
+console.log(`  Final:    ${sumF.toFixed(3).padStart(7)}  ( 2) ${Math.abs(sumF-2)<tol?"✓":"✗"}`);
+console.log(`  Campeón:  ${sumC.toFixed(3).padStart(7)}  ( 1) ${Math.abs(sumC-1)<tol?"✓":"✗"}`);
 console.log(`  ${inv3ok ? "OK ✓" : "FALLO ✗"}`);
 
-// ─── 6. Invariante 4: MEX y CZE con P(clasifica) = 100% ─────────────────────
-console.log("\nINVARIANTE 4: MEX y CZE con 100% de clasificar (ambos 6 pts tras MD2)");
-const pMEX = probsAdj["MEX"]?.group ?? 0;
-const pCZE = probsAdj["CZE"]?.group ?? 0;
-const inv4ok = (pMEX >= 0.999 && pCZE >= 0.999);
-console.log(`  MEX clasifica: ${(pMEX * 100).toFixed(1)}%  ${pMEX >= 0.999 ? "✓" : "✗"}`);
-console.log(`  CZE clasifica: ${(pCZE * 100).toFixed(1)}%  ${pCZE >= 0.999 ? "✓" : "✗"}`);
+// ─── 8. Invariante 4: MEX y CZE 100% clasificar ──────────────────────────────
+console.log("\nINVARIANTE 4: MEX y CZE = 100% clasifica (ambos 6 pts tras MD2)");
+const pMEX = probsHybrid["MEX"]?.group ?? 0;
+const pCZE = probsHybrid["CZE"]?.group ?? 0;
+const inv4ok = pMEX >= 0.999 && pCZE >= 0.999;
+console.log(`  MEX: ${(pMEX*100).toFixed(1)}%  ${pMEX>=0.999?"✓":"✗"}`);
+console.log(`  CZE: ${(pCZE*100).toFixed(1)}%  ${pCZE>=0.999?"✓":"✗"}`);
 console.log(`  ${inv4ok ? "OK ✓" : "FALLO ✗"}`);
 
-// ─── 7. Invariante 5: estabilidad < 3pp ──────────────────────────────────────
+// ─── 9. Invariante 5: estabilidad < 3pp ──────────────────────────────────────
 console.log("\nINVARIANTE 5: estabilidad < 3pp entre dos corridas independientes");
 const t2 = performance.now();
-const probsAdj2 = runMonteCarlo(GROUPS, stateWithResults, ITERS);
-console.log(`  Segunda corrida: ${(performance.now() - t2).toFixed(0)} ms`);
-
-let maxDiffPP = 0;
-let worstTeam = "";
-for (const [code, p] of Object.entries(probsAdj)) {
-  const p2 = probsAdj2[code];
-  if (!p2) continue;
-  const diff = Math.abs(p.champion - p2.champion) * 100;
-  if (diff > maxDiffPP) { maxDiffPP = diff; worstTeam = code; }
+const probsHybrid2 = runMonteCarlo(GROUPS, stateWithResults, ITERS, adjHybrid);
+console.log(`  Segunda corrida: ${(performance.now()-t2).toFixed(0)} ms`);
+let maxDriftPP = 0, worstTeam = "";
+for (const [code, p] of Object.entries(probsHybrid)) {
+  const diff = Math.abs(p.champion - (probsHybrid2[code]?.champion ?? 0)) * 100;
+  if (diff > maxDriftPP) { maxDriftPP = diff; worstTeam = code; }
 }
-const inv5ok = maxDiffPP < 3.0;
-console.log(`  Mayor diferencia en campeón: ${maxDiffPP.toFixed(2)}pp (${worstTeam})`);
-console.log(`  ${inv5ok ? "OK ✓ — estable (<3pp)" : `FALLO ✗ — diferencia ${maxDiffPP.toFixed(2)}pp supera 3pp`}`);
+const inv5ok = maxDriftPP < 3.0;
+console.log(`  Mayor diferencia: ${maxDriftPP.toFixed(2)}pp (${worstTeam})`);
+console.log(`  ${inv5ok ? "OK ✓ — estable (<3pp)" : `FALLO ✗ — ${maxDriftPP.toFixed(2)}pp > 3pp`}`);
 
-// ─── 8. Comparativa Top 10: base vs. ajustado ────────────────────────────────
+// ─── 10. Top 10 campeón: solo-goles vs. híbrido ──────────────────────────────
 console.log(`\n${"─".repeat(67)}`);
-console.log("Top 10 campeón: SIN ajuste bayesiano vs. CON ajuste bayesiano");
+console.log("Top 10 campeón: SOLO-GOLES vs. HÍBRIDO");
 console.log("─".repeat(67));
-console.log("  Pos  Equipo  BASE%    Pos  Equipo  ADJ%     Δ%");
+console.log("  Pos  Equipo  SG-%     Pos  Equipo  HY-%     Δ(HY−SG)");
 console.log("  ─────────────────────────────────────────────────────────────");
 
-const sortedBase = Object.entries(probsBase)
-  .sort((a, b) => b[1].champion - a[1].champion).slice(0, 10);
-const sortedAdj  = Object.entries(probsAdj)
-  .sort((a, b) => b[1].champion - a[1].champion).slice(0, 10);
+const sortedSG = Object.entries(probsGoals).sort((a,b)=>b[1].champion-a[1].champion).slice(0,10);
+const sortedHY = Object.entries(probsHybrid).sort((a,b)=>b[1].champion-a[1].champion).slice(0,10);
 
 for (let i = 0; i < 10; i++) {
-  const [codeB, pB] = sortedBase[i];
-  const [codeA, pA] = sortedAdj[i];
-  const pAbase  = probsBase[codeA]?.champion ?? 0;
-  const pAdelta = (pA.champion - pAbase) * 100;
-  const sign    = pAdelta >= 0 ? "+" : "";
+  const [codeSG, pSG] = sortedSG[i];
+  const [codeHY, pHY] = sortedHY[i];
+  const pHYbase = probsGoals[codeHY]?.champion ?? 0;
+  const delta   = (pHY.champion - pHYbase) * 100;
+  const sign    = delta >= 0 ? "+" : "";
   console.log(
-    `  ${(i+1).toString().padStart(2)}.  ${codeB.padEnd(6)} ${(pB.champion*100).toFixed(1).padStart(5)}%` +
-    `    ${(i+1).toString().padStart(2)}.  ${codeA.padEnd(6)} ${(pA.champion*100).toFixed(1).padStart(5)}%` +
-    `  ${sign}${pAdelta.toFixed(1)}pp`
+    `  ${(i+1).toString().padStart(2)}.  ${codeSG.padEnd(6)} ${(pSG.champion*100).toFixed(1).padStart(5)}%` +
+    `    ${(i+1).toString().padStart(2)}.  ${codeHY.padEnd(6)} ${(pHY.champion*100).toFixed(1).padStart(5)}%` +
+    `  ${sign}${delta.toFixed(1)}pp`
   );
 }
 
-// ─── 9. Resumen ───────────────────────────────────────────────────────────────
+// ─── 11. Resumen ──────────────────────────────────────────────────────────────
 console.log(`\n${"═".repeat(67)}`);
 const allOk = inv1ok && inv2ok && inv3ok && inv4ok && inv5ok;
 console.log(`RESULTADO: ${allOk ? "TODAS LAS INVARIANTES OK ✓" : "ALGUNA INVARIANTE FALLÓ ✗"}`);
-console.log(`  LR=${LEARNING_RATE}  BLEND=${BLEND}  MaxDelta=±${maxDelta.toFixed(1)}pts  MaxDrift=±${maxDiffPP.toFixed(2)}pp`);
+console.log(`  LR=${LEARNING_RATE}  BLEND=${BLEND}  W_G=${W_GOLES}  W_R=${W_RESULTADO}  GS=${GOALS_SCALE}  MaxΔ=±${maxDelta.toFixed(1)}pts  Drift=±${maxDriftPP.toFixed(2)}pp`);
+
+// Nota sobre MAR/BRA/BEL/EGY
+const marG = adjGoals["MAR"] - STRENGTH["MAR"];
+const marH = adjHybrid["MAR"] - STRENGTH["MAR"];
+const braG = adjGoals["BRA"] - STRENGTH["BRA"];
+const braH = adjHybrid["BRA"] - STRENGTH["BRA"];
+const egyG = adjGoals["EGY"] - STRENGTH["EGY"];
+const egyH = adjHybrid["EGY"] - STRENGTH["EGY"];
+const belG = adjGoals["BEL"] - STRENGTH["BEL"];
+const belH = adjHybrid["BEL"] - STRENGTH["BEL"];
+console.log("\nVerificación de casos clave:");
+console.log(`  MAR (ganó a BRA):  solo-goles Δ${marG>=0?"+":""}${marG.toFixed(2)}  híbrido Δ${marH>=0?"+":""}${marH.toFixed(2)}  → MAR sube ${marH>marG?"MÁS":"IGUAL/MENOS"} con híbrido`);
+console.log(`  BRA (perdió a MAR):solo-goles Δ${braG>=0?"+":""}${braG.toFixed(2)}  híbrido Δ${braH>=0?"+":""}${braH.toFixed(2)}  → BRA ${braH<braG?"BAJA como esperado":"SUBE igual"} con híbrido`);
+console.log(`  EGY (ganó a BEL):  solo-goles Δ${egyG>=0?"+":""}${egyG.toFixed(2)}  híbrido Δ${egyH>=0?"+":""}${egyH.toFixed(2)}  → EGY sube ${egyH>egyG?"MÁS":"IGUAL/MENOS"} con híbrido`);
+console.log(`  BEL (perdió a EGY):solo-goles Δ${belG>=0?"+":""}${belG.toFixed(2)}  híbrido Δ${belH>=0?"+":""}${belH.toFixed(2)}  → BEL ${belH<belG?"BAJA como esperado":"sube igual"} con híbrido`);
 console.log("═".repeat(67));
