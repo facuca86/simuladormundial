@@ -48,7 +48,9 @@ export function renderProbabilitiesView(container, GROUPS, state) {
 
   const emptyNotice = !hasResults
     ? `<div class="prob-empty-notice">
-         No hay simulación ejecutada. Presioná el botón para calcular probabilidades.
+         ${predCache.restoring
+           ? "Cargando simulación guardada…"
+           : "No hay simulación ejecutada. Presioná el botón para calcular probabilidades."}
        </div>`
     : "";
 

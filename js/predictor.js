@@ -369,6 +369,7 @@ export const predCache = {
   stale:       true,   // true si los resultados están desactualizados
   strengthAdj: null,   // fuerzas ajustadas del último runMonteCarlo
   slotDist:    null,   // { r32_1: { home: { GER: 0.45 }, away: { ... } }, ... }
+  restoring:   false,  // true mientras se carga la última simulación desde Firebase al iniciar
 };
 
 export function markCacheStale() {

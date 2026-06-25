@@ -749,6 +749,13 @@ async function loadAndRestoreSimulation() {
     for (const group of GROUPS) updateProbColumn(group);
     updateAllGroupProbBars();
     updateBracketProbBars();
+
+    // Si la pestaña ya estaba visible al cargar (click antes de que terminara la carga async),
+    // re-renderizarla ahora con los datos restaurados.
+    const probContainer = document.getElementById("phase-probabilities");
+    if (probContainer && !probContainer.classList.contains("hidden")) {
+      renderProbabilitiesView(probContainer, GROUPS, state);
+    }
   } catch (e) {
     console.error("[app] loadAndRestoreSimulation:", e);
   }
@@ -788,12 +795,21 @@ async function syncFromFirebase() {
 }
 
 // ─── Bootstrap ─────────────────────────────────────────────────────────────
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   init();
-  // Primero sincronizar marcadores, luego restaurar la última simulación.
-  // La simulación se carga DESPUÉS para que el stateHash compare contra
-  // los marcadores ya actualizados desde Firebase.
-  syncFromFirebase()
-    .catch(() => {})
-    .then(() => loadAndRestoreSimulation().catch(() => {}));
+  // Indicar que la simulación guardada está siendo restaurada, para que la
+  // pestaña de probabilidades muestre "Cargando..." en lugar de "No hay simulación".
+  predCache.restoring = true;
+  try { await syncFromFirebase(); } catch {}
+  try { await loadAndRestoreSimulation(); } catch {}
+  predCache.restoring = false;
+
+  // Si no se encontró simulación guardada y el tab ya estaba visible,
+  // re-renderizar para reemplazar "Cargando..." por "No hay simulación".
+  if (!predCache.result) {
+    const probContainer = document.getElementById("phase-probabilities");
+    if (probContainer && !probContainer.classList.contains("hidden")) {
+      renderProbabilitiesView(probContainer, GROUPS, state);
+    }
+  }
 });
