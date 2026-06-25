@@ -289,6 +289,19 @@ export function buildBracket(container, qualified) {
   window.addEventListener("resize", scaleBracketToFit);
 }
 
+// Aplica resultados del bracket cargados desde Firestore al estado en memoria y
+// re-renderiza el bracket completo (equipos, radios y campeón).
+export function applyBracketResultsFromFirebase(results) {
+  if (!results || Object.keys(results).length === 0) return;
+  Object.keys(bracketResults).forEach(k => delete bracketResults[k]);
+  Object.assign(bracketResults, results);
+  propagateWinners();
+  renderBracketTeams();
+  syncBracketRadios();
+  updateChampion();
+  document.dispatchEvent(new CustomEvent("bracketUpdated"));
+}
+
 export function resetBracket() {
   Object.keys(bracketResults).forEach(k => delete bracketResults[k]);
   saveBracketState();

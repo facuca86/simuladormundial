@@ -36,7 +36,8 @@ export function saveResults(groupId, results) {
   getFirebase().then(fb => {
     if (!fb) return;
     const { db, doc, setDoc } = fb;
-    setDoc(doc(db, firestorePath(groupId)), { data: JSON.stringify(results) }).catch(() => {});
+    setDoc(doc(db, firestorePath(groupId)), { data: JSON.stringify(results) })
+      .catch(e => console.error(`[storage] saveResults(${groupId}):`, e));
   });
 }
 
@@ -162,8 +163,8 @@ export async function loadResultsFromFirebase(groupId) {
       localStorage.setItem(PREFIX + groupId, JSON.stringify(results));
       return results;
     }
-  } catch {
-    // Firebase falló, se usará localStorage
+  } catch (e) {
+    console.warn(`[storage] loadResultsFromFirebase(${groupId}):`, e);
   }
   return null;
 }

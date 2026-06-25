@@ -7,7 +7,7 @@ import {
 } from "./fixtures.js";
 import { computeStandings, canStillQualify, computeBestThirds } from "./standings.js";
 import { saveResults, loadResults, clearResults, loadResultsFromFirebase, loadSimulationFromFirebase, computeStateHash } from "./storage.js";
-import { buildBracket, refreshBracketSeeds, scaleBracketToFit, getBracketStats, updateBracketProbBars, updateR32SlotIndicators } from "./bracket.js";
+import { buildBracket, refreshBracketSeeds, scaleBracketToFit, getBracketStats, updateBracketProbBars, updateR32SlotIndicators, applyBracketResultsFromFirebase } from "./bracket.js";
 import { renderThirdsView } from "./thirds.js";
 import { renderHistoriaView } from "./historia.js";
 import { markCacheStale, predCache, matchProbabilities, STADIUM_COUNTRY } from "./predictor.js";
@@ -773,8 +773,16 @@ async function syncFromFirebase() {
       updateStandingsDOM(g);
     }
   }
+  // Cargar resultados del bracket desde Firestore y aplicarlos al estado
+  const bracketFbResults = await loadResultsFromFirebase("bracket");
+
   const qualified = getQualifiedTeams();
   refreshBracketSeeds(qualified);
+
+  if (bracketFbResults && Object.keys(bracketFbResults).length > 0) {
+    applyBracketResultsFromFirebase(bracketFbResults);
+  }
+
   renderThirdsView(document.getElementById("phase-thirds"), qualified);
   updateStatusBar();
 }
