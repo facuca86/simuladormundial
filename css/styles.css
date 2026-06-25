@@ -1412,7 +1412,7 @@ td.pts {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   width: 100%;
-  max-width: 560px;
+  max-width: 660px;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -1453,8 +1453,8 @@ td.pts {
   line-height: 1.7;
   padding: 0.75rem;
   resize: vertical;
-  min-height: 260px;
-  max-height: 60vh;
+  min-height: 360px;
+  max-height: 70vh;
   width: 100%;
 }
 
