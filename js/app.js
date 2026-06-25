@@ -7,7 +7,7 @@ import {
 } from "./fixtures.js";
 import { computeStandings, canStillQualify, computeBestThirds } from "./standings.js";
 import { saveResults, loadResults, clearResults, loadResultsFromFirebase, loadSimulationFromFirebase, computeStateHash } from "./storage.js";
-import { buildBracket, refreshBracketSeeds, scaleBracketToFit, getBracketStats, updateBracketProbBars, updateR32SlotIndicators } from "./bracket.js";
+import { buildBracket, refreshBracketSeeds, scaleBracketToFit, getBracketStats, updateBracketProbBars, updateR32SlotIndicators, applyBracketResultsFromFirebase } from "./bracket.js";
 import { renderThirdsView } from "./thirds.js";
 import { renderHistoriaView } from "./historia.js";
 import { markCacheStale, predCache, matchProbabilities, STADIUM_COUNTRY } from "./predictor.js";
@@ -749,6 +749,13 @@ async function loadAndRestoreSimulation() {
     for (const group of GROUPS) updateProbColumn(group);
     updateAllGroupProbBars();
     updateBracketProbBars();
+
+    // Si la pestaña ya estaba visible al cargar (click antes de que terminara la carga async),
+    // re-renderizarla ahora con los datos restaurados.
+    const probContainer = document.getElementById("phase-probabilities");
+    if (probContainer && !probContainer.classList.contains("hidden")) {
+      renderProbabilitiesView(probContainer, GROUPS, state);
+    }
   } catch (e) {
     console.error("[app] loadAndRestoreSimulation:", e);
   }
@@ -773,19 +780,36 @@ async function syncFromFirebase() {
       updateStandingsDOM(g);
     }
   }
+  // Cargar resultados del bracket desde Firestore y aplicarlos al estado
+  const bracketFbResults = await loadResultsFromFirebase("bracket");
+
   const qualified = getQualifiedTeams();
   refreshBracketSeeds(qualified);
+
+  if (bracketFbResults && Object.keys(bracketFbResults).length > 0) {
+    applyBracketResultsFromFirebase(bracketFbResults);
+  }
+
   renderThirdsView(document.getElementById("phase-thirds"), qualified);
   updateStatusBar();
 }
 
 // ─── Bootstrap ─────────────────────────────────────────────────────────────
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   init();
-  // Primero sincronizar marcadores, luego restaurar la última simulación.
-  // La simulación se carga DESPUÉS para que el stateHash compare contra
-  // los marcadores ya actualizados desde Firebase.
-  syncFromFirebase()
-    .catch(() => {})
-    .then(() => loadAndRestoreSimulation().catch(() => {}));
+  // Indicar que la simulación guardada está siendo restaurada, para que la
+  // pestaña de probabilidades muestre "Cargando..." en lugar de "No hay simulación".
+  predCache.restoring = true;
+  try { await syncFromFirebase(); } catch {}
+  try { await loadAndRestoreSimulation(); } catch {}
+  predCache.restoring = false;
+
+  // Si no se encontró simulación guardada y el tab ya estaba visible,
+  // re-renderizar para reemplazar "Cargando..." por "No hay simulación".
+  if (!predCache.result) {
+    const probContainer = document.getElementById("phase-probabilities");
+    if (probContainer && !probContainer.classList.contains("hidden")) {
+      renderProbabilitiesView(probContainer, GROUPS, state);
+    }
+  }
 });
