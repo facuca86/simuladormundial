@@ -264,14 +264,15 @@ function resolveSeed(seed, qualified) {
 
 // ─── Simulación de un bracket completo ────────────────────────────────────────
 // Acumula contadores por equipo. Devuelve el código del campeón.
-function simulateBracket(qualified, bestThirds, counts, strengthTable = STRENGTH) {
+// slotCounts (opcional): acumula por slot R32 qué equipo lo ocupa en cada iteración.
+function simulateBracket(qualified, bestThirds, counts, strengthTable = STRENGTH, slotCounts = null) {
   // Determinar combinación de terceros
   const top8     = bestThirds.slice(0, 8);
   const comboKey = top8.map(t => t.groupLabel).sort().join("");
   const combo    = BEST_THIRDS_COMBINATIONS[comboKey] || null;
 
   // Resolver los 32 equipos del R32 y acumular "avanza grupo"
-  const r32 = R32_SEEDS.map(s => {
+  const r32 = R32_SEEDS.map((s, idx) => {
     const hCode = resolveSeed(s.home, qualified);
     let aCode;
     if (s.thirdSlot !== null && combo) {
@@ -282,6 +283,12 @@ function simulateBracket(qualified, bestThirds, counts, strengthTable = STRENGTH
     }
     if (hCode) counts[hCode].group++;
     if (aCode) counts[aCode].group++;
+    // Acumular distribución por slot para candidatos R32
+    if (slotCounts) {
+      const mid = `r32_${idx + 1}`;
+      if (hCode) slotCounts[mid].home[hCode] = (slotCounts[mid].home[hCode] || 0) + 1;
+      if (aCode) slotCounts[mid].away[aCode] = (slotCounts[mid].away[aCode] || 0) + 1;
+    }
     return { h: hCode, a: aCode };
   });
 
@@ -361,6 +368,7 @@ export const predCache = {
   result:      null,   // probabilidades { code: { group, qf, sf, final, champion } }
   stale:       true,   // true si los resultados están desactualizados
   strengthAdj: null,   // fuerzas ajustadas del último runMonteCarlo
+  slotDist:    null,   // { r32_1: { home: { GER: 0.45 }, away: { ... } }, ... }
 };
 
 export function markCacheStale() {
@@ -428,6 +436,12 @@ export function runMonteCarlo(GROUPS, state, iterations = 2000, strengthOverride
     }
   }
 
+  // ── Contadores de candidatos por slot R32 ─────────────────────────────────
+  const slotCounts = {};
+  for (let i = 1; i <= 16; i++) {
+    slotCounts[`r32_${i}`] = { home: {}, away: {} };
+  }
+
   // ── Bucle Monte Carlo ─────────────────────────────────────────────────────
   for (let i = 0; i < iterations; i++) {
     // 1. Simular fixtures pendientes con fuerzas ajustadas (mutar buffers in-place)
@@ -455,7 +469,19 @@ export function runMonteCarlo(GROUPS, state, iterations = 2000, strengthOverride
 
     // 3. Calcular mejores terceros y simular bracket con fuerzas ajustadas
     const bestThirds = computeBestThirds(GROUPS, simBuf);
-    simulateBracket(qualified, bestThirds, counts, STRENGTH_ADJ);
+    simulateBracket(qualified, bestThirds, counts, STRENGTH_ADJ, slotCounts);
+  }
+
+  // ── Convertir slotCounts a probabilidades ────────────────────────────────
+  const slotDist = {};
+  for (let i = 1; i <= 16; i++) {
+    const mid = `r32_${i}`;
+    slotDist[mid] = { home: {}, away: {} };
+    for (const side of ['home', 'away']) {
+      for (const [code, cnt] of Object.entries(slotCounts[mid][side])) {
+        slotDist[mid][side][code] = cnt / iterations;
+      }
+    }
   }
 
   // ── Convertir contadores a probabilidades ─────────────────────────────────
@@ -478,6 +504,7 @@ export function runMonteCarlo(GROUPS, state, iterations = 2000, strengthOverride
   predCache.result      = probs;
   predCache.stale       = false;
   predCache.strengthAdj = STRENGTH_ADJ;
+  predCache.slotDist    = slotDist;
 
   return probs;
 }

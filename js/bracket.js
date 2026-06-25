@@ -284,6 +284,7 @@ export function buildBracket(container, qualified) {
   }
 
   updateChampion();
+  _setupSlotDelegation();
 
   window.addEventListener("resize", scaleBracketToFit);
 }
@@ -536,6 +537,16 @@ function buildTeamSlot(matchId, side, seedLabel) {
   }
 
   slot.appendChild(nameSpan);
+
+  // Indicator span para slots R32 (candidatos / confirmado)
+  if (matchId.startsWith("r32_")) {
+    const indicator = document.createElement("span");
+    indicator.className = "slot-indicator";
+    indicator.dataset.matchId = matchId;
+    indicator.dataset.side = side;
+    slot.appendChild(indicator);
+  }
+
   slot.appendChild(radio);
   return slot;
 }
@@ -744,4 +755,259 @@ function launchConfetti() {
   }
 
   requestAnimationFrame(animate);
+}
+
+// ─── FEATURE: Candidatos por slot R32 ────────────────────────────────────────
+
+let _tooltipEl = null;
+let _modalOverlayEl = null;
+let _modalEl = null;
+let _delegationReady = false;
+let _currentHoveredSlot = null;
+
+function _ensureTooltip() {
+  if (_tooltipEl) return _tooltipEl;
+  _tooltipEl = document.createElement("div");
+  _tooltipEl.className = "slot-candidates-tooltip";
+  _tooltipEl.setAttribute("role", "tooltip");
+  _tooltipEl.setAttribute("aria-hidden", "true");
+  document.body.appendChild(_tooltipEl);
+  return _tooltipEl;
+}
+
+function _ensureModal() {
+  if (_modalOverlayEl) return;
+  _modalOverlayEl = document.createElement("div");
+  _modalOverlayEl.className = "sct-modal-overlay";
+  _modalEl = document.createElement("div");
+  _modalEl.className = "sct-modal";
+  _modalEl.setAttribute("role", "dialog");
+  _modalEl.setAttribute("aria-modal", "true");
+  _modalOverlayEl.appendChild(_modalEl);
+  document.body.appendChild(_modalOverlayEl);
+  _modalOverlayEl.addEventListener("click", (e) => {
+    if (e.target === _modalOverlayEl) _closeModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") _closeModal();
+  });
+}
+
+function _closeModal() {
+  if (!_modalOverlayEl) return;
+  _modalOverlayEl.classList.remove("sct-modal-overlay--visible");
+  document.body.style.overflow = "";
+}
+
+function _formatSlotLabel(seed) {
+  const m1 = seed.match(/^([12])([A-L])$/);
+  if (m1) return `${m1[1]}° Grupo ${m1[2]}`;
+  const m3 = seed.match(/^3([A-L/]+)$/);
+  if (m3) return `3° Mejor Tercero (${m3[1]})`;
+  return seed;
+}
+
+function _getSlotCandidates(matchId, side) {
+  if (!predCache.slotDist || predCache.stale) return null;
+  const dist = predCache.slotDist[matchId]?.[side];
+  if (!dist) return null;
+  return Object.entries(dist)
+    .filter(([, p]) => p >= 0.005)
+    .map(([code, prob]) => ({ team: TEAMS[code], prob }))
+    .filter(({ team }) => !!team)
+    .sort((a, b) => b.prob - a.prob)
+    .slice(0, 8);
+}
+
+function _buildCandidatesHTML(candidates) {
+  return candidates.map(({ team, prob }) => {
+    const pct = Math.round(prob * 100);
+    const w = (prob * 100).toFixed(1);
+    return `<div class="sct-item">
+      <span class="sct-flag">${team.flag}</span>
+      <span class="sct-name">${team.code}</span>
+      <div class="sct-bar-wrap"><div class="sct-bar" style="width:${w}%"></div></div>
+      <span class="sct-pct">${pct}%</span>
+    </div>`;
+  }).join("");
+}
+
+function _buildSlotContent(slotLabel, candidates, stale) {
+  const labelHTML = `<div class="sct-slot-label">${slotLabel}</div>`;
+  if (stale || !candidates || candidates.length === 0) {
+    return labelHTML + `<div class="sct-stale">Simulá para ver candidatos</div>`;
+  }
+  return labelHTML + _buildCandidatesHTML(candidates);
+}
+
+function _showTooltip(slotEl, matchId, side) {
+  const tt = _ensureTooltip();
+  const m = findMatch(matchId);
+  if (!m) return;
+  const seed = side === "home" ? m.seedHome : m.seedAway;
+  const slotLabel = _formatSlotLabel(seed);
+  const candidates = _getSlotCandidates(matchId, side);
+  const stale = predCache.stale || !predCache.slotDist;
+
+  tt.innerHTML = _buildSlotContent(slotLabel, candidates, stale);
+
+  const rect = slotEl.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const ttW = 240;
+  const ttH = tt.offsetHeight || 160;
+
+  let left = rect.right + 8;
+  if (left + ttW > vw - 8) left = rect.left - ttW - 8;
+  left = Math.max(8, Math.min(vw - ttW - 8, left));
+
+  let top = rect.top;
+  if (top + ttH > vh - 8) top = Math.max(8, vh - ttH - 8);
+
+  tt.style.left = `${left}px`;
+  tt.style.top = `${top}px`;
+  tt.classList.add("slot-candidates-tooltip--visible");
+}
+
+function _hideTooltip() {
+  _tooltipEl?.classList.remove("slot-candidates-tooltip--visible");
+}
+
+function _openModal(matchId, side) {
+  _ensureModal();
+  const m = findMatch(matchId);
+  if (!m) return;
+  const seed = side === "home" ? m.seedHome : m.seedAway;
+  const slotLabel = _formatSlotLabel(seed);
+  const candidates = _getSlotCandidates(matchId, side);
+  const stale = predCache.stale || !predCache.slotDist;
+
+  _modalEl.innerHTML = `
+    <div class="sct-modal__header">
+      <div>
+        <div class="sct-modal__title">Candidatos al slot</div>
+        <div class="sct-modal__subtitle">${slotLabel}</div>
+      </div>
+      <button class="sct-modal__close" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="sct-modal__body">
+      ${stale || !candidates || candidates.length === 0
+        ? `<div class="sct-stale">Simulá para ver candidatos</div>`
+        : _buildCandidatesHTML(candidates)
+      }
+    </div>`;
+
+  _modalEl.querySelector(".sct-modal__close").addEventListener("click", _closeModal);
+  _modalOverlayEl.classList.add("sct-modal-overlay--visible");
+  document.body.style.overflow = "hidden";
+}
+
+function _setupSlotDelegation() {
+  if (_delegationReady) return;
+  _delegationReady = true;
+
+  _ensureTooltip();
+  _ensureModal();
+
+  // Desktop hover — usa mouseover/mouseout (burbujean) con guard de slot
+  document.addEventListener("mouseover", (e) => {
+    const slot = e.target.closest?.(".bracket-team[data-r32-provisional]");
+    if (slot === _currentHoveredSlot) return;
+    if (_currentHoveredSlot) _hideTooltip();
+    _currentHoveredSlot = slot || null;
+    if (!slot) return;
+    _showTooltip(slot, slot.dataset.matchId, slot.dataset.side);
+  });
+
+  document.addEventListener("mouseout", (e) => {
+    if (!_currentHoveredSlot) return;
+    const toEl = e.relatedTarget;
+    const toSlot = toEl?.closest?.(".bracket-team[data-r32-provisional]");
+    if (toSlot !== _currentHoveredSlot) {
+      _hideTooltip();
+      _currentHoveredSlot = null;
+    }
+  });
+
+  // Mobile tap — click en el nombre dentro de slot provisional
+  document.addEventListener("click", (e) => {
+    if (window.innerWidth > 768) return;
+    const nameSpan = e.target.closest?.(
+      ".bracket-team[data-r32-provisional] .bracket-team__name"
+    );
+    if (!nameSpan) return;
+    const bt = nameSpan.closest(".bracket-team");
+    e.stopPropagation();
+    _openModal(bt.dataset.matchId, bt.dataset.side);
+  });
+}
+
+function _isGroupComplete(groupLabel, groups, state) {
+  const group = groups.find(g => g.label === groupLabel);
+  if (!group) return false;
+  const gs = state[group.id] || {};
+  return group.fixtures.every(fix => {
+    const r = gs[fix.id];
+    return r && r.home !== "" && r.away !== "" &&
+           !isNaN(parseInt(r.home, 10)) && !isNaN(parseInt(r.away, 10));
+  });
+}
+
+function _isSlotConfirmed(matchId, side, team, match, groups, state) {
+  if (!team) return false;
+
+  // Con datos MC frescos: confirmar si la probabilidad del equipo actual es ≥ 99.9%
+  if (predCache.slotDist && !predCache.stale) {
+    const prob = predCache.slotDist[matchId]?.[side]?.[team.code] ?? 0;
+    return prob >= 0.999;
+  }
+
+  // Sin MC: confirmar si el grupo del seed está completo
+  const seed = side === "home" ? match.seedHome : match.seedAway;
+  const regularMatch = seed.match(/^[12]([A-L])$/);
+  if (regularMatch) return _isGroupComplete(regularMatch[1], groups, state);
+
+  // Slot de mejor tercero: provisional salvo confirmación MC
+  return false;
+}
+
+export function updateR32SlotIndicators(groups, state) {
+  if (!bracketRoot) return;
+
+  for (const match of ROUNDS[0].matches) {
+    for (const side of ["home", "away"]) {
+      const team = bracketTeams[match.id]?.[side];
+      const confirmed = _isSlotConfirmed(match.id, side, team, match, groups, state);
+
+      // Actualizar todos los indicadores de este slot (desktop + mobile)
+      bracketRoot.querySelectorAll(
+        `.slot-indicator[data-match-id="${match.id}"][data-side="${side}"]`
+      ).forEach(ind => {
+        if (!team) {
+          ind.className = "slot-indicator";
+          ind.textContent = "";
+          ind.removeAttribute("title");
+        } else if (confirmed) {
+          ind.className = "slot-indicator slot-indicator--confirmed";
+          ind.textContent = "✓";
+          ind.title = "Clasificación confirmada";
+        } else {
+          ind.className = "slot-indicator slot-indicator--provisional";
+          ind.textContent = "*";
+          ind.removeAttribute("title");
+        }
+      });
+
+      // Marcar el .bracket-team para event delegation
+      bracketRoot.querySelectorAll(
+        `.bracket-team[data-match-id="${match.id}"][data-side="${side}"]`
+      ).forEach(bt => {
+        if (!team || confirmed) {
+          delete bt.dataset.r32Provisional;
+        } else {
+          bt.dataset.r32Provisional = "true";
+        }
+      });
+    }
+  }
 }

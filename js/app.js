@@ -7,7 +7,7 @@ import {
 } from "./fixtures.js";
 import { computeStandings, canStillQualify, computeBestThirds } from "./standings.js";
 import { saveResults, loadResults, clearResults, loadResultsFromFirebase, loadSimulationFromFirebase, computeStateHash } from "./storage.js";
-import { buildBracket, refreshBracketSeeds, scaleBracketToFit, getBracketStats, updateBracketProbBars } from "./bracket.js";
+import { buildBracket, refreshBracketSeeds, scaleBracketToFit, getBracketStats, updateBracketProbBars, updateR32SlotIndicators } from "./bracket.js";
 import { renderThirdsView } from "./thirds.js";
 import { renderHistoriaView } from "./historia.js";
 import { markCacheStale, predCache, matchProbabilities, STADIUM_COUNTRY } from "./predictor.js";
@@ -134,6 +134,7 @@ function init() {
   }
   document.getElementById("phase-groups").appendChild(buildExportButton());
   buildBracket(document.getElementById("bracket-root"), getQualifiedTeams());
+  updateR32SlotIndicators(GROUPS, state);
   renderThirdsView(document.getElementById("phase-thirds"), getQualifiedTeams());
   initTabs();
   updateStatusBar();
@@ -144,6 +145,7 @@ function init() {
     for (const group of GROUPS) updateProbColumn(group);
     updateAllGroupProbBars();
     updateBracketProbBars();
+    updateR32SlotIndicators(GROUPS, state);
   });
 }
 
@@ -157,7 +159,7 @@ function initTabs() {
       TABS.forEach(t => document.getElementById(`phase-${t}`).classList.toggle("hidden", tab !== t));
       const banner = document.getElementById("champion-banner");
       if (banner) banner.classList.toggle("champion-banner--tab-hidden", tab !== "bracket");
-      if (tab === "bracket")       { refreshBracketSeeds(getQualifiedTeams()); scaleBracketToFit(); }
+      if (tab === "bracket")       { refreshBracketSeeds(getQualifiedTeams()); scaleBracketToFit(); updateR32SlotIndicators(GROUPS, state); }
       if (tab === "thirds")        renderThirdsView(document.getElementById("phase-thirds"), getQualifiedTeams());
       if (tab === "historia")      renderHistoriaView(document.getElementById("phase-historia"));
       if (tab === "probabilities") renderProbabilitiesView(document.getElementById("phase-probabilities"), GROUPS, state);
@@ -487,6 +489,7 @@ function handleScoreChange(group, fixtureId, homeInput, awayInput) {
   updateProbColumn(group);
   updateAllGroupProbBars();
   updateBracketProbBars();
+  updateR32SlotIndicators(GROUPS, state);
 }
 
 function updateStaleNotice(show) {
@@ -541,6 +544,7 @@ function resetGroup(group) {
   updateProbColumn(group);
   updateAllGroupProbBars();
   updateBracketProbBars();
+  updateR32SlotIndicators(GROUPS, state);
 }
 
 // ─── Exportación de resultados ─────────────────────────────────────────────
