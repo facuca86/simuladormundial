@@ -333,10 +333,34 @@ function simulateBracket(qualified, bestThirds, counts, strengthTable = STRENGTH
   return f1 || f2 || null;
 }
 
+// ─── Probabilidades 1X2 para un partido individual ───────────────────────────
+// Usa las mismas lambdas y bono de localía que simulateMatch, pero devuelve
+// la distribución analítica P1/PX/P2 vía la grilla Poisson truncada.
+// venueCountry: null → solo homeMult para anfitriones (comportamiento KO).
+export function matchProbabilities(homeCode, awayCode, strengthTable = STRENGTH, venueCountry = null) {
+  const sH = strengthTable[homeCode] ?? 65;
+  const sA = strengthTable[awayCode] ?? 65;
+  const BASE = 1.2, ALPHA = 0.6;
+  const ratio = sH / sA;
+  let homeMult, awayMult;
+  if (venueCountry !== null) {
+    homeMult = (HOSTS.has(homeCode) && venueCountry === homeCode) ? 1.1 : 1.0;
+    awayMult = (HOSTS.has(awayCode) && venueCountry === awayCode) ? 1.1 : 1.0;
+  } else {
+    homeMult = HOSTS.has(homeCode) ? 1.1 : 1.0;
+    awayMult = 1.0;
+  }
+  const lambdaH = BASE * Math.pow(ratio,     ALPHA) * homeMult;
+  const lambdaA = BASE * Math.pow(1 / ratio, ALPHA) * awayMult;
+  const { pWin, pDraw } = _matchOutcomeProbs(lambdaH, lambdaA);
+  return { p1: pWin, px: pDraw, p2: 1 - pWin - pDraw };
+}
+
 // ─── Caché singleton ──────────────────────────────────────────────────────────
 export const predCache = {
-  result: null,  // objeto de probabilidades { code: { group, qf, sf, final, champion } }
-  stale:  true,  // true si los resultados están desactualizados
+  result:      null,   // probabilidades { code: { group, qf, sf, final, champion } }
+  stale:       true,   // true si los resultados están desactualizados
+  strengthAdj: null,   // fuerzas ajustadas del último runMonteCarlo
 };
 
 export function markCacheStale() {
@@ -451,8 +475,9 @@ export function runMonteCarlo(GROUPS, state, iterations = 2000, strengthOverride
   console.log(`[predictor] champion prob sum: ${champSum.toFixed(4)} (target ~1.0)`);
 
   // Actualizar caché
-  predCache.result = probs;
-  predCache.stale  = false;
+  predCache.result      = probs;
+  predCache.stale       = false;
+  predCache.strengthAdj = STRENGTH_ADJ;
 
   return probs;
 }

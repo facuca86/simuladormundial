@@ -7,10 +7,10 @@ import {
 } from "./fixtures.js";
 import { computeStandings, canStillQualify, computeBestThirds } from "./standings.js";
 import { saveResults, loadResults, clearResults, loadResultsFromFirebase } from "./storage.js";
-import { buildBracket, refreshBracketSeeds, scaleBracketToFit, getBracketStats } from "./bracket.js";
+import { buildBracket, refreshBracketSeeds, scaleBracketToFit, getBracketStats, updateBracketProbBars } from "./bracket.js";
 import { renderThirdsView } from "./thirds.js";
 import { renderHistoriaView } from "./historia.js";
-import { markCacheStale, predCache } from "./predictor.js";
+import { markCacheStale, predCache, matchProbabilities, STADIUM_COUNTRY } from "./predictor.js";
 import { renderProbabilitiesView } from "./probabilities.js";
 
 // ─── Configuración de grupos ───────────────────────────────────────────────
@@ -138,10 +138,12 @@ function init() {
   initTabs();
   updateStatusBar();
   document.addEventListener("bracketUpdated", updateStatusBar);
-  // Cuando el predictor termina de simular, refrescar Prob% en todas las tablas
+  // Cuando el predictor termina de simular, refrescar Prob% y barras 1X2
   document.addEventListener("predictorUpdated", () => {
     updateStaleNotice(false);
     for (const group of GROUPS) updateProbColumn(group);
+    updateAllGroupProbBars();
+    updateBracketProbBars();
   });
 }
 
@@ -301,6 +303,17 @@ function buildMatchCard(group, fix) {
     input.addEventListener("input", () => handleScoreChange(group, fix.id, homeInput, awayInput));
   });
 
+  const vc = STADIUM_COUNTRY[fix.stadium] ?? "USA";
+  const probBar = document.createElement("div");
+  probBar.className = "match-prob-bar";
+  probBar.dataset.home          = fix.home;
+  probBar.dataset.away          = fix.away;
+  probBar.dataset.venueCountry  = vc;
+  probBar.dataset.groupId       = group.id;
+  probBar.dataset.fixId         = fix.id;
+  card.appendChild(probBar);
+  renderGroupProbBar(probBar);
+
   return card;
 }
 
@@ -417,6 +430,41 @@ function updateStandingsDOM(group, container) {
   `).join("");
 }
 
+// ─── Barras de probabilidad 1X2 (grupos) ──────────────────────────────────
+function buildProbBarHTML(p1, px, p2, played, stale) {
+  const segCls = [
+    "prob-bar-segments",
+    played ? "prob-bar-segments--played" : "",
+    (stale && !played) ? "prob-bar-segments--stale" : "",
+  ].filter(Boolean).join(" ");
+  return `
+    <div class="${segCls}">
+      <div class="prob-bar-seg prob-bar-seg--win"  style="width:${(p1 * 100).toFixed(2)}%"></div>
+      <div class="prob-bar-seg prob-bar-seg--draw" style="width:${(px * 100).toFixed(2)}%"></div>
+      <div class="prob-bar-seg prob-bar-seg--loss" style="width:${(p2 * 100).toFixed(2)}%"></div>
+    </div>
+    <div class="prob-bar-labels">
+      <span class="prob-bar-label--win">${Math.round(p1 * 100)}%</span>
+      <span class="prob-bar-label--draw">${Math.round(px * 100)}%</span>
+      <span class="prob-bar-label--loss">${Math.round(p2 * 100)}%</span>
+    </div>`;
+}
+
+function renderGroupProbBar(barEl) {
+  const { home, away, venueCountry, groupId, fixId } = barEl.dataset;
+  if (!home || !away) return;
+  const saved  = state[groupId]?.[fixId];
+  const played = saved && saved.home !== "" && saved.away !== "" &&
+                 !isNaN(parseInt(saved.home, 10)) && !isNaN(parseInt(saved.away, 10));
+  const st     = predCache.strengthAdj ?? undefined;
+  const { p1, px, p2 } = matchProbabilities(home, away, st, venueCountry || null);
+  barEl.innerHTML = buildProbBarHTML(p1, px, p2, played, predCache.stale);
+}
+
+export function updateAllGroupProbBars() {
+  document.querySelectorAll(".match-prob-bar").forEach(renderGroupProbBar);
+}
+
 // ─── Cambio de marcador ────────────────────────────────────────────────────
 function handleScoreChange(group, fixtureId, homeInput, awayInput) {
   if (homeInput.value !== "" && parseInt(homeInput.value) < 0) homeInput.value = 0;
@@ -435,8 +483,10 @@ function handleScoreChange(group, fixtureId, homeInput, awayInput) {
     markCacheStale();
     updateStaleNotice(true);
   }
-  // Actualizar columna Prob en standings (mostrará "–" porque hay stale/vacío)
+  // Actualizar columna Prob en standings y barras 1X2
   updateProbColumn(group);
+  updateAllGroupProbBars();
+  updateBracketProbBars();
 }
 
 function updateStaleNotice(show) {
@@ -489,6 +539,8 @@ function resetGroup(group) {
   updateStatusBar();
   if (predCache.result !== null) { markCacheStale(); updateStaleNotice(true); }
   updateProbColumn(group);
+  updateAllGroupProbBars();
+  updateBracketProbBars();
 }
 
 // ─── Exportación de resultados ─────────────────────────────────────────────

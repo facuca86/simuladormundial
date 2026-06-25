@@ -419,6 +419,26 @@ td.pts {
 /* ── Utility ────────────────────────────────────────────────────────────── */
 .hidden { display: none !important; }
 
+/* ── CAMBIO 2: Tab nav mobile ──────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .tab-nav {
+    justify-content: flex-start;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 0.6rem 0.5rem 0;
+    gap: 0.25rem;
+  }
+  .tab-nav::-webkit-scrollbar { display: none; }
+  .tab-btn {
+    padding: 0.42rem 0.72rem;
+    font-size: 0.76rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
+
 /* ── Group header: flag tiles ────────────────────────────────────────────── */
 .group-article__header {
   background: #111d35;
@@ -482,6 +502,91 @@ td.pts {
 .bracket-scroll {
   overflow: hidden;
   padding: 1.5rem 0.5rem 2rem;
+}
+
+/* ── CAMBIO 3: Bracket mobile — rondas apiladas ─────────────────────────── */
+.bracket-mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* Ocultar árbol desktop, mostrar vista por rondas */
+  .bracket-scroll  { display: none; }
+  .bracket-mobile  { display: block; padding: 0.5rem 0 1rem; }
+}
+
+/* Tab bar de rondas */
+.bracket-mobile__tabs {
+  display: flex;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  gap: 0.3rem;
+  padding: 0 0.25rem 0.6rem;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.bracket-mobile__tabs::-webkit-scrollbar { display: none; }
+
+.bracket-mobile__tab {
+  background: var(--surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.bracket-mobile__tab--active {
+  background: var(--surface2);
+  color: var(--accent2);
+  border-color: var(--accent);
+}
+
+.bracket-mobile__tab:hover:not(.bracket-mobile__tab--active) {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+/* Ronda activa */
+.bracket-mobile__content {
+  padding: 0 0.25rem;
+}
+
+.bracket-mobile__round {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Partidos en vista mobile: tamaño usable */
+.bracket-mobile .bracket-match {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.bracket-mobile .bracket-team {
+  min-height: 38px;
+  padding: 0.4rem 0.6rem;
+}
+
+.bracket-mobile .bracket-team__name {
+  font-size: 0.88rem;
+}
+
+.bracket-mobile .bracket-radio {
+  width: 17px;
+  height: 17px;
+}
+
+.bracket-mobile .bracket-match__info {
+  font-size: 0.62rem;
+  padding: 0.25rem 0.5rem 0.2rem;
 }
 
 /* Three-column bracket: left | center | right */
@@ -897,6 +1002,67 @@ td.pts {
   color: var(--accent2);
   font-size: 0.95rem;
   letter-spacing: 1px;
+}
+
+/* ── Barra de probabilidad 1X2 ──────────────────────────────────────────── */
+.match-prob-bar {
+  margin: 0.3rem 0 0.05rem;
+}
+
+.prob-bar-segments {
+  display: flex;
+  height: 7px;
+  border-radius: 4px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.prob-bar-segments--stale  { opacity: 0.5; }
+.prob-bar-segments--played { opacity: 0.28; filter: grayscale(0.6); }
+
+.prob-bar-seg--win  { background: #2ed573; }
+.prob-bar-seg--draw { background: #636e72; }
+.prob-bar-seg--loss { background: #ff7f50; }
+
+.prob-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.18rem;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.prob-bar-label--win  { color: #2ed573; }
+.prob-bar-label--draw { color: #8a9bb4; }
+.prob-bar-label--loss { color: #ff7f50; }
+
+/* Bracket: barra compacta dentro de match box */
+.bracket-prob-bar {
+  padding: 0.18rem 0.45rem 0.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.bracket-prob-bar .prob-bar-segments {
+  height: 5px;
+  border-radius: 3px;
+}
+
+/* Labels ocultos por defecto en desktop, visibles en hover */
+.bracket-prob-bar .prob-bar-labels {
+  display: none;
+  font-size: 9px;
+  margin-top: 0.12rem;
+}
+
+.bracket-match:hover .bracket-prob-bar .prob-bar-labels {
+  display: flex;
+}
+
+/* En la vista mobile del bracket, siempre mostrar labels */
+.bracket-mobile .bracket-prob-bar .prob-bar-labels {
+  display: flex;
+  font-size: 10px;
+  margin-top: 0.18rem;
 }
 
 /* ── Responsive ────────────────────────────────────────────────────────── */

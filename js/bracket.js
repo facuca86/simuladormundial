@@ -1,6 +1,7 @@
 import { TEAMS } from "./teams.js";
 import { saveResults, loadResults } from "./storage.js";
 import { BEST_THIRDS_COMBINATIONS } from "./combinations.js";
+import { matchProbabilities, predCache } from "./predictor.js";
 
 // ─── Zona horaria por ciudad sede (verano / DST) ──────────────────────────
 const VENUE_UTC = {
@@ -272,6 +273,7 @@ export function buildBracket(container, qualified) {
   });
   container.appendChild(resetBtn);
   container.appendChild(scrollWrapper);
+  container.appendChild(buildMobileView());
 
   // Champion banner (fixed at page bottom, created once, hidden outside bracket tab)
   if (!document.getElementById("champion-banner")) {
@@ -302,11 +304,76 @@ export function scaleBracketToFit() {
   if (!scroll || !wrapper) return;
 
   wrapper.style.zoom = "";
+  // En mobile se usa la vista alternativa por rondas, no el árbol con zoom
+  if (window.innerWidth <= 768) return;
+
   const naturalW = wrapper.scrollWidth;
   const availableW = scroll.clientWidth;
   if (naturalW > availableW) {
     wrapper.style.zoom = String(availableW / naturalW);
   }
+}
+
+// ─── Vista mobile del bracket (rondas apiladas con tabs) ─────────────────
+const MOBILE_ROUND_LABELS = {
+  r32:   "R32",
+  r16:   "Octavos",
+  qf:    "Cuartos",
+  sf:    "Semis",
+  final: "Final",
+  third: "3.°",
+};
+
+function buildMobileView() {
+  const mobile = document.createElement("div");
+  mobile.className = "bracket-mobile";
+
+  const tabBar = document.createElement("div");
+  tabBar.className = "bracket-mobile__tabs";
+
+  const contentArea = document.createElement("div");
+  contentArea.className = "bracket-mobile__content";
+
+  const allRounds = [
+    ...ROUNDS,
+    { id: "third", label: "3.° Puesto", matches: [THIRD_PLACE] },
+  ];
+
+  allRounds.forEach((round, idx) => {
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.className = "bracket-mobile__tab" + (idx === 0 ? " bracket-mobile__tab--active" : "");
+    tab.dataset.round = round.id;
+    tab.textContent = MOBILE_ROUND_LABELS[round.id] || round.label;
+    tab.addEventListener("click", () => {
+      tabBar.querySelectorAll(".bracket-mobile__tab").forEach(t =>
+        t.classList.toggle("bracket-mobile__tab--active", t === tab)
+      );
+      contentArea.querySelectorAll(".bracket-mobile__round").forEach(r =>
+        r.classList.toggle("hidden", r.dataset.round !== round.id)
+      );
+    });
+    tabBar.appendChild(tab);
+
+    const roundDiv = document.createElement("div");
+    roundDiv.className = "bracket-mobile__round" + (idx > 0 ? " hidden" : "");
+    roundDiv.dataset.round = round.id;
+
+    const roundLabel = document.createElement("div");
+    roundLabel.className = "bracket-round__label";
+    roundLabel.textContent = round.label;
+    roundDiv.appendChild(roundLabel);
+
+    for (const match of round.matches) {
+      roundDiv.appendChild(buildMatchBox(match));
+    }
+
+    contentArea.appendChild(roundDiv);
+  });
+
+  mobile.appendChild(tabBar);
+  mobile.appendChild(contentArea);
+  return mobile;
 }
 
 // Build a round column using only matches[startIdx..endIdx)
@@ -397,7 +464,45 @@ function buildMatchBox(match) {
   box.appendChild(buildTeamSlot(match.id, "home", match.seedHome));
   box.appendChild(buildTeamSlot(match.id, "away", match.seedAway));
 
+  const probBar = document.createElement("div");
+  probBar.className = "bracket-prob-bar";
+  probBar.dataset.matchId = match.id;
+  box.appendChild(probBar);
+
   return box;
+}
+
+function _buildBracketProbBarHTML(p1, px, p2, played, stale) {
+  const segCls = [
+    "prob-bar-segments",
+    played ? "prob-bar-segments--played" : "",
+    (stale && !played) ? "prob-bar-segments--stale" : "",
+  ].filter(Boolean).join(" ");
+  return `
+    <div class="${segCls}">
+      <div class="prob-bar-seg prob-bar-seg--win"  style="width:${(p1 * 100).toFixed(2)}%"></div>
+      <div class="prob-bar-seg prob-bar-seg--draw" style="width:${(px * 100).toFixed(2)}%"></div>
+      <div class="prob-bar-seg prob-bar-seg--loss" style="width:${(p2 * 100).toFixed(2)}%"></div>
+    </div>
+    <div class="prob-bar-labels">
+      <span class="prob-bar-label--win">${Math.round(p1 * 100)}%</span>
+      <span class="prob-bar-label--draw">${Math.round(px * 100)}%</span>
+      <span class="prob-bar-label--loss">${Math.round(p2 * 100)}%</span>
+    </div>`;
+}
+
+export function updateBracketProbBars() {
+  if (!bracketRoot) return;
+  bracketRoot.querySelectorAll(".bracket-prob-bar").forEach(bar => {
+    const matchId = bar.dataset.matchId;
+    const home    = bracketTeams[matchId]?.home;
+    const away    = bracketTeams[matchId]?.away;
+    if (!home || !away) { bar.innerHTML = ""; return; }
+    const st      = predCache.strengthAdj ?? undefined;
+    const played  = !!bracketResults[matchId]?.winner;
+    const { p1, px, p2 } = matchProbabilities(home.code, away.code, st, null);
+    bar.innerHTML = _buildBracketProbBarHTML(p1, px, p2, played, predCache.stale);
+  });
 }
 
 function buildTeamSlot(matchId, side, seedLabel) {
@@ -455,6 +560,8 @@ function renderBracketTeams() {
       span.classList.add("bracket-team__name--seed");
     }
   });
+
+  updateBracketProbBars();
 }
 
 function findMatch(id) {
