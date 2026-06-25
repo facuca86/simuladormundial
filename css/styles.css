@@ -1904,3 +1904,222 @@ tr.qualified .prob-cell {
   font-weight: 700;
   font-size: 0.93rem;
 }
+
+/* ── Candidatos por slot R32 ────────────────────────────────────────────── */
+
+/* Indicador de estado (✓ / *) dentro del .bracket-team */
+.slot-indicator {
+  flex-shrink: 0;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+  min-width: 10px;
+  text-align: center;
+  user-select: none;
+}
+
+.slot-indicator--confirmed {
+  color: #2ed573;
+  opacity: 0.85;
+}
+
+.slot-indicator--provisional {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* Tooltip de candidatos (desktop hover) */
+.slot-candidates-tooltip {
+  position: fixed;
+  z-index: 2500;
+  width: 240px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.7rem 0.6rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.65);
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.14s ease, visibility 0.14s ease;
+}
+
+.slot-candidates-tooltip--visible {
+  visibility: visible;
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  .slot-candidates-tooltip { display: none !important; }
+}
+
+.sct-slot-label {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--accent2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.45rem;
+}
+
+.sct-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.3rem;
+}
+
+.sct-item:last-child { margin-bottom: 0; }
+
+.sct-flag {
+  font-size: 0.82rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.sct-name {
+  font-size: 0.69rem;
+  font-weight: 700;
+  color: var(--text);
+  width: 30px;
+  flex-shrink: 0;
+}
+
+.sct-bar-wrap {
+  flex: 1;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.sct-bar {
+  height: 100%;
+  background: #2ed573;
+  border-radius: 3px;
+  min-width: 2px;
+}
+
+.sct-pct {
+  font-size: 0.63rem;
+  color: var(--text-muted);
+  width: 28px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.sct-stale {
+  font-size: 0.63rem;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  padding: 0.2rem 0;
+}
+
+/* Modal de candidatos (mobile) */
+.sct-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  z-index: 2500;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.sct-modal-overlay--visible {
+  display: flex;
+}
+
+.sct-modal {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 1rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  width: 100%;
+  max-width: 480px;
+  max-height: 70vh;
+  overflow-y: auto;
+  animation: sct-slide-up 0.22s ease;
+}
+
+@keyframes sct-slide-up {
+  from { transform: translateY(32px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.sct-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.6rem;
+}
+
+.sct-modal__title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.sct-modal__subtitle {
+  font-size: 0.68rem;
+  color: var(--accent2);
+  font-weight: 600;
+  margin-top: 0.1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.sct-modal__close {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: var(--text);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+  transition: background 0.15s;
+}
+
+.sct-modal__close:hover { background: rgba(255, 255, 255, 0.2); }
+
+.sct-modal__body { display: flex; flex-direction: column; gap: 0; }
+
+.sct-modal .sct-item {
+  margin-bottom: 0.55rem;
+}
+
+.sct-modal .sct-flag { font-size: 1rem; }
+
+.sct-modal .sct-name {
+  font-size: 0.82rem;
+  width: 36px;
+}
+
+.sct-modal .sct-bar-wrap { height: 6px; }
+
+.sct-modal .sct-pct {
+  font-size: 0.75rem;
+  width: 32px;
+}
+
+.sct-modal .sct-stale {
+  font-size: 0.78rem;
+  padding: 0.5rem 0;
+}
+
+/* Cursor pointer en nombre de equipo provisional (mobile) */
+@media (max-width: 768px) {
+  .bracket-team[data-r32-provisional] .bracket-team__name {
+    cursor: pointer;
+  }
+}
