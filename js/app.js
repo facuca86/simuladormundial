@@ -507,23 +507,25 @@ function buildExportButton() {
 }
 
 function exportResults() {
-  const byMatchday = {};
+  const lines = [];
+  const SEP = "═".repeat(47);
+  const dgFmt = n => (n >= 0 ? "+" : "") + n;
+  const pct = p => (p * 100).toFixed(0) + "%";
 
+  // ── Resultados por fecha ─────────────────────────────────────────────
+  const byMatchday = {};
   for (const group of GROUPS) {
     for (const fix of group.fixtures) {
       const result = state[group.id][fix.id];
       const gh = result && result.home !== "" ? parseInt(result.home, 10) : null;
       const ga = result && result.away !== "" ? parseInt(result.away, 10) : null;
       const hasResult = gh !== null && ga !== null && !isNaN(gh) && !isNaN(ga);
-
       if (!byMatchday[fix.matchday]) byMatchday[fix.matchday] = [];
       byMatchday[fix.matchday].push({ groupLabel: group.label, fix, gh, ga, hasResult });
     }
   }
 
   const matchdays = Object.keys(byMatchday).map(Number).sort((a, b) => a - b);
-
-  const lines = [];
   for (const day of matchdays) {
     lines.push(`FECHA ${day}`);
     const matches = byMatchday[day].sort((a, b) =>
@@ -541,6 +543,79 @@ function exportResults() {
     lines.push("");
   }
 
+  // ── Tablas de posiciones ──────────────────────────────────────────────
+  lines.push(SEP);
+  lines.push("TABLAS DE POSICIONES");
+  lines.push("");
+  for (const group of GROUPS) {
+    lines.push(`GRUPO ${group.label}`);
+    lines.push(
+      "#  " + "Equipo".padEnd(22) +
+      "PJ".padStart(3) + "PG".padStart(3) + "PE".padStart(3) + "PP".padStart(3) +
+      "GF".padStart(4) + "GC".padStart(4) + "DG".padStart(5) + "PTS".padStart(5)
+    );
+    const rows = computeStandings(group.teams, group.fixtures, state[group.id] || {});
+    rows.forEach((r, idx) => {
+      lines.push(
+        String(idx + 1).padEnd(3) + r.team.name.padEnd(22) +
+        String(r.pj).padStart(3) + String(r.pg).padStart(3) +
+        String(r.pe).padStart(3) + String(r.pp).padStart(3) +
+        String(r.gf).padStart(4) + String(r.gc).padStart(4) +
+        dgFmt(r.dg).padStart(5) + String(r.pts).padStart(5)
+      );
+    });
+    lines.push("");
+  }
+
+  // ── Mejores terceros ──────────────────────────────────────────────────
+  lines.push(SEP);
+  lines.push("MEJORES TERCEROS");
+  lines.push("");
+  lines.push(
+    "#  " + "GRP".padEnd(5) + "Equipo".padEnd(22) +
+    "PJ".padStart(3) + "PG".padStart(3) + "PE".padStart(3) + "PP".padStart(3) +
+    "GF".padStart(4) + "GC".padStart(4) + "DG".padStart(5) + "PTS".padStart(5)
+  );
+  const thirds = computeBestThirds(GROUPS, state);
+  thirds.forEach((r, idx) => {
+    lines.push(
+      String(idx + 1).padEnd(3) + r.groupLabel.padEnd(5) + r.team.name.padEnd(22) +
+      String(r.pj).padStart(3) + String(r.pg).padStart(3) +
+      String(r.pe).padStart(3) + String(r.pp).padStart(3) +
+      String(r.gf).padStart(4) + String(r.gc).padStart(4) +
+      dgFmt(r.dg).padStart(5) + String(r.pts).padStart(5) +
+      (idx < 8 ? " ✓" : "")
+    );
+  });
+  lines.push("");
+
+  // ── Probabilidades ────────────────────────────────────────────────────
+  if (predCache.result) {
+    lines.push(SEP);
+    lines.push(`PROBABILIDADES${predCache.stale ? " (desactualizadas)" : ""}`);
+    lines.push("");
+    for (const group of GROUPS) {
+      lines.push(`GRUPO ${group.label}`);
+      lines.push(
+        "#  " + "Equipo".padEnd(22) +
+        "Clasif.".padStart(8) + "Cuartos".padStart(8) +
+        "Semis".padStart(8) + "Final".padStart(7) + "Campeón".padStart(8)
+      );
+      const rows = computeStandings(group.teams, group.fixtures, state[group.id] || {});
+      rows.forEach((r, idx) => {
+        const p = predCache.result[r.team.code];
+        if (!p) return;
+        lines.push(
+          String(idx + 1).padEnd(3) + r.team.name.padEnd(22) +
+          pct(p.group).padStart(8) + pct(p.qf).padStart(8) +
+          pct(p.sf).padStart(8) + pct(p.final).padStart(7) +
+          pct(p.champion).padStart(8)
+        );
+      });
+      lines.push("");
+    }
+  }
+
   showExportModal(lines.join("\n").trimEnd());
 }
 
@@ -555,7 +630,7 @@ function showExportModal(text) {
   overlay.innerHTML = `
     <div class="export-modal">
       <div class="export-modal__header">
-        <h3>Resultados exportados</h3>
+        <h3>Resultados y posiciones</h3>
         <button class="export-modal__close" aria-label="Cerrar">✕</button>
       </div>
       <textarea class="export-modal__text" readonly>${text}</textarea>
