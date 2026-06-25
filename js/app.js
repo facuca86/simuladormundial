@@ -6,7 +6,7 @@ import {
   GROUP_J_FIXTURES, GROUP_K_FIXTURES, GROUP_L_FIXTURES
 } from "./fixtures.js";
 import { computeStandings, canStillQualify, computeBestThirds } from "./standings.js";
-import { saveResults, loadResults, clearResults, loadResultsFromFirebase } from "./storage.js";
+import { saveResults, loadResults, clearResults, loadResultsFromFirebase, loadSimulationFromFirebase, computeStateHash } from "./storage.js";
 import { buildBracket, refreshBracketSeeds, scaleBracketToFit, getBracketStats, updateBracketProbBars } from "./bracket.js";
 import { renderThirdsView } from "./thirds.js";
 import { renderHistoriaView } from "./historia.js";
@@ -726,6 +726,30 @@ function toArgTime(localTime, utcOffset) {
   return `${String(argH).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+// ─── Carga de simulación guardada al inicio ────────────────────────────────
+// Llama a Firebase DESPUÉS de que los marcadores ya fueron sincronizados,
+// para que el stateHash se compare contra el estado actualizado.
+// NO ejecuta Monte Carlo — solo lee y muestra lo guardado.
+async function loadAndRestoreSimulation() {
+  try {
+    const payload = await loadSimulationFromFirebase();
+    if (!payload || !payload.probabilities) return;
+
+    const currentHash = computeStateHash(state);
+    const isStale = payload.stateHash !== currentHash;
+
+    predCache.result = payload.probabilities;
+    predCache.stale  = isStale;
+
+    if (isStale) updateStaleNotice(true);
+    for (const group of GROUPS) updateProbColumn(group);
+    updateAllGroupProbBars();
+    updateBracketProbBars();
+  } catch (e) {
+    console.error("[app] loadAndRestoreSimulation:", e);
+  }
+}
+
 // ─── Sincronización con Firebase al inicio ─────────────────────────────────
 async function syncFromFirebase() {
   for (const g of GROUPS) {
@@ -754,5 +778,10 @@ async function syncFromFirebase() {
 // ─── Bootstrap ─────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   init();
-  syncFromFirebase().catch(() => {});
+  // Primero sincronizar marcadores, luego restaurar la última simulación.
+  // La simulación se carga DESPUÉS para que el stateHash compare contra
+  // los marcadores ya actualizados desde Firebase.
+  syncFromFirebase()
+    .catch(() => {})
+    .then(() => loadAndRestoreSimulation().catch(() => {}));
 });
