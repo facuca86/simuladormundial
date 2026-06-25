@@ -4,6 +4,7 @@
 
 import { runMonteCarlo, predCache } from "./predictor.js";
 import { TEAMS } from "./teams.js";
+import { saveSimulationToFirebase, computeStateHash } from "./storage.js";
 
 function pct(v) {
   if (v === undefined || v === null) return "–";
@@ -96,7 +97,14 @@ export function renderProbabilitiesView(container, GROUPS, state) {
     // Dar tiempo al navegador para redibujar el estado "Simulando…"
     // antes de bloquear el hilo con el cálculo Monte Carlo.
     setTimeout(() => {
-      runMonteCarlo(GROUPS, state, 2000);
+      const probs = runMonteCarlo(GROUPS, state, 2000);
+      // Persistir en Firebase + localStorage para recuperar al recargar
+      saveSimulationToFirebase({
+        probabilities: probs,
+        iterations: 2000,
+        timestamp: Date.now(),
+        stateHash: computeStateHash(state),
+      }).catch(e => console.error("[probabilities] saveSimulationToFirebase:", e));
       // Notificar a app.js para que refresque las columnas Prob% en standings
       document.dispatchEvent(new CustomEvent("predictorUpdated"));
       renderProbabilitiesView(container, GROUPS, state);
