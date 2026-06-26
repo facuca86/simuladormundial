@@ -2129,15 +2129,15 @@ tr.qualified .prob-cell {
 
 /* Ampliar columna R32 para dar espacio a las etiquetas externas */
 .bracket-side--left .bracket-round[data-round="r32"] {
-  padding-left: 100px;
-  min-width: 260px;
-  max-width: 280px;
+  padding-left: 72px;
+  min-width: 240px;
+  max-width: 260px;
 }
 
 .bracket-side--right .bracket-round[data-round="r32"] {
-  padding-right: 100px;
-  min-width: 260px;
-  max-width: 280px;
+  padding-right: 72px;
+  min-width: 240px;
+  max-width: 260px;
 }
 
 /* Contenedor de etiquetas: absolutas respecto a .bracket-match */
@@ -2145,7 +2145,7 @@ tr.qualified .prob-cell {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 96px;
+  width: 68px;
   display: flex;
   flex-direction: column;
   /* padding-top = altura aproximada de .bracket-match__info (~2.15rem) */
