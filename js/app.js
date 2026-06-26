@@ -742,9 +742,10 @@ async function loadAndRestoreSimulation() {
     const currentHash = computeStateHash(state);
     const isStale = payload.stateHash !== currentHash;
 
-    predCache.result   = payload.probabilities;
-    predCache.slotDist = payload.slotDist ?? null;
-    predCache.stale    = isStale;
+    predCache.result      = payload.probabilities;
+    predCache.slotDist    = payload.slotDist    ?? null;
+    predCache.strengthAdj = payload.strengthAdj ?? null;
+    predCache.stale       = isStale;
 
     if (isStale) updateStaleNotice(true);
     for (const group of GROUPS) updateProbColumn(group);
