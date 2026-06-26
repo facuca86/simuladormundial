@@ -5,6 +5,11 @@
   padding: 0;
 }
 
+html {
+  /* Evita que el bracket full-bleed (100vw) genere scrollbar horizontal */
+  overflow-x: clip;
+}
+
 :root {
   --bg:           #0a0e1a;
   --surface:      #131929;
@@ -502,9 +507,11 @@ td.pts {
 .bracket-scroll {
   overflow: hidden;
   padding: 1.5rem 0 2rem;
-  /* Full-bleed: rompe el max-width del main-container y usa todo el viewport */
+  /* Full-bleed: rompe el max-width del main-container y usa todo el viewport.
+     La fórmula min(0px, 800px - 50vw) compensa el auto-margin del contenedor
+     (activo solo cuando viewport > 1600px); el -1rem compensa su padding. */
   width: 100vw;
-  margin-left: calc(50% - 50vw);
+  margin-left: calc(min(0px, 800px - 50vw) - 1rem);
 }
 
 /* ── CAMBIO 3: Bracket mobile — rondas apiladas ─────────────────────────── */
@@ -2132,13 +2139,13 @@ tr.qualified .prob-cell {
 
 /* Ampliar columna R32 para dar espacio a las etiquetas externas */
 .bracket-side--left .bracket-round[data-round="r32"] {
-  padding-left: 72px;
+  padding-left: 80px;
   min-width: 240px;
   max-width: 260px;
 }
 
 .bracket-side--right .bracket-round[data-round="r32"] {
-  padding-right: 72px;
+  padding-right: 80px;
   min-width: 240px;
   max-width: 260px;
 }
@@ -2148,7 +2155,7 @@ tr.qualified .prob-cell {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 68px;
+  width: 76px;
   display: flex;
   flex-direction: column;
   /* padding-top = altura aproximada de .bracket-match__info (~2.15rem) */
@@ -2162,7 +2169,7 @@ tr.qualified .prob-cell {
   flex: 1;
   display: flex;
   align-items: center;
-  font-size: 0.52rem;
+  font-size: 0.58rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.3px;
