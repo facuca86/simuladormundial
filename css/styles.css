@@ -501,7 +501,10 @@ td.pts {
 /* ── Bracket Layout ──────────────────────────────────────────────────────── */
 .bracket-scroll {
   overflow: hidden;
-  padding: 1.5rem 0.5rem 2rem;
+  padding: 1.5rem 0 2rem;
+  /* Full-bleed: rompe el max-width del main-container y usa todo el viewport */
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
 }
 
 /* ── CAMBIO 3: Bracket mobile — rondas apiladas ─────────────────────────── */
