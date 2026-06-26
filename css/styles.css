@@ -606,6 +606,7 @@ td.pts {
   min-width: max-content;
   gap: 0;
   padding-right: 4px;
+  margin: 0 auto;
 }
 
 /* Each side is a row of round columns */
