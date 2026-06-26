@@ -483,6 +483,23 @@ function buildMatchBox(match) {
   probBar.dataset.matchId = match.id;
   box.appendChild(probBar);
 
+  if (match.id.startsWith("r32_")) {
+    const labelsDiv = document.createElement("div");
+    labelsDiv.className = "r32-labels";
+
+    const homeLabel = document.createElement("div");
+    homeLabel.className = "r32-label";
+    homeLabel.textContent = formatSeedLabel(match.seedHome);
+
+    const awayLabel = document.createElement("div");
+    awayLabel.className = "r32-label";
+    awayLabel.textContent = formatSeedLabel(match.seedAway);
+
+    labelsDiv.appendChild(homeLabel);
+    labelsDiv.appendChild(awayLabel);
+    box.appendChild(labelsDiv);
+  }
+
   return box;
 }
 
@@ -551,8 +568,13 @@ function buildTeamSlot(matchId, side, seedLabel) {
 
   slot.appendChild(nameSpan);
 
-  // Indicator span para slots R32 (candidatos / confirmado)
   if (matchId.startsWith("r32_")) {
+    const inlineLabel = document.createElement("span");
+    inlineLabel.className = "r32-label-inline";
+    inlineLabel.textContent = formatSeedLabel(seedLabel);
+    slot.appendChild(inlineLabel);
+
+    // Indicator span (candidatos / confirmado)
     const indicator = document.createElement("span");
     indicator.className = "slot-indicator";
     indicator.dataset.matchId = matchId;
@@ -817,6 +839,14 @@ function _formatSlotLabel(seed) {
   if (m1) return `${m1[1]}° Grupo ${m1[2]}`;
   const m3 = seed.match(/^3([A-L/]+)$/);
   if (m3) return `3° Mejor Tercero (${m3[1]})`;
+  return seed;
+}
+
+function formatSeedLabel(seed) {
+  const m1 = seed.match(/^([12])([A-L])$/);
+  if (m1) return `${m1[1]}° GRUPO ${m1[2]}`;
+  const m3 = seed.match(/^3([A-L/]+)$/);
+  if (m3) return `3° MEJOR TERCERO ${m3[1]}`;
   return seed;
 }
 
