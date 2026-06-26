@@ -742,13 +742,15 @@ async function loadAndRestoreSimulation() {
     const currentHash = computeStateHash(state);
     const isStale = payload.stateHash !== currentHash;
 
-    predCache.result = payload.probabilities;
-    predCache.stale  = isStale;
+    predCache.result   = payload.probabilities;
+    predCache.slotDist = payload.slotDist ?? null;
+    predCache.stale    = isStale;
 
     if (isStale) updateStaleNotice(true);
     for (const group of GROUPS) updateProbColumn(group);
     updateAllGroupProbBars();
     updateBracketProbBars();
+    updateR32SlotIndicators(GROUPS, state);
 
     // Si la pestaña ya estaba visible al cargar (click antes de que terminara la carga async),
     // re-renderizarla ahora con los datos restaurados.
