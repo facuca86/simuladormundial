@@ -512,6 +512,9 @@ td.pts {
      (activo solo cuando viewport > 1600px); el -1rem compensa su padding. */
   width: 100vw;
   margin-left: calc(min(0px, 800px - 50vw) - 1rem);
+  /* Centra horizontalmente el bracket-wrapper dentro del ancho disponible */
+  display: flex;
+  justify-content: center;
 }
 
 /* ── CAMBIO 3: Bracket mobile — rondas apiladas ─────────────────────────── */
