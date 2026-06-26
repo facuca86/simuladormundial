@@ -104,6 +104,7 @@ export function renderProbabilitiesView(container, GROUPS, state) {
       saveSimulationToFirebase({
         probabilities: probs,
         slotDist: predCache.slotDist,
+        strengthAdj: predCache.strengthAdj,
         iterations: 2000,
         timestamp: Date.now(),
         stateHash: computeStateHash(state),
