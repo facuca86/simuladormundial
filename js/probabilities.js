@@ -103,6 +103,7 @@ export function renderProbabilitiesView(container, GROUPS, state) {
       // Persistir en Firebase + localStorage para recuperar al recargar
       saveSimulationToFirebase({
         probabilities: probs,
+        slotDist: predCache.slotDist,
         iterations: 2000,
         timestamp: Date.now(),
         stateHash: computeStateHash(state),
