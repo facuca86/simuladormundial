@@ -272,15 +272,15 @@ export function buildBracket(container, qualified) {
     resetBracket();
   });
   container.appendChild(resetBtn);
-  container.appendChild(scrollWrapper);
 
-  // ── Radial toggle (mobile only via CSS) ──
+  // ── Radial toggle (desktop + mobile via CSS) ──
   const radialToggle = document.createElement("button");
   radialToggle.type = "button";
   radialToggle.className = "btn-radial-toggle";
   radialToggle.textContent = "Ver llaves";
-
   container.appendChild(radialToggle);
+
+  container.appendChild(scrollWrapper);
   container.appendChild(buildMobileView());
 
   _radialContainerEl = document.createElement("div");
@@ -339,6 +339,7 @@ export function resetBracket() {
 }
 
 export function scaleBracketToFit() {
+  if (_radialActive) return;
   const scroll = bracketRoot?.querySelector(".bracket-scroll");
   const wrapper = bracketRoot?.querySelector(".bracket-wrapper");
   if (!scroll || !wrapper) return;
@@ -403,6 +404,18 @@ function buildMobileView() {
     roundLabel.className = "bracket-round__label";
     roundLabel.textContent = round.label;
     roundDiv.appendChild(roundLabel);
+
+    // Trophy image in the Final sub-tab
+    if (round.id === "final") {
+      const trophyWrap = document.createElement("div");
+      trophyWrap.className = "mobile-final__trophy";
+      const trophyImg = document.createElement("img");
+      trophyImg.src = "trophy.png";
+      trophyImg.alt = "Trofeo Mundial";
+      trophyImg.className = "mobile-final__trophy-img";
+      trophyWrap.appendChild(trophyImg);
+      roundDiv.appendChild(trophyWrap);
+    }
 
     for (const match of round.matches) {
       roundDiv.appendChild(buildMatchBox(match));
@@ -854,18 +867,25 @@ function _buildRadialSVG() {
   const FIN = ROUNDS[4].matches[0];
 
   const svg = _svgNS("svg", { viewBox: "0 0 360 360", xmlns: "http://www.w3.org/2000/svg" });
-  svg.style.cssText = "width:100%;max-width:420px;display:block;margin:0 auto;touch-action:manipulation;overflow:hidden";
+  svg.style.cssText = "width:100%;max-width:580px;display:block;margin:0 auto;touch-action:manipulation;overflow:hidden";
 
   /* ── defs ── */
   const defs = _svgNS("defs");
+  // Grayscale filter for eliminated teams
   const gf = _svgNS("filter", { id: "rbk-gray" });
   gf.appendChild(_svgNS("feColorMatrix", { type: "saturate", values: "0" }));
   defs.appendChild(gf);
+  // Background radial glow gradient
   const gr = _svgNS("radialGradient", { id: "rbk-glow", cx: "50%", cy: "50%", r: "38%", fx: "50%", fy: "50%" });
   const gs1 = _svgNS("stop", { offset: "0%",   "stop-color": "#FFD700", "stop-opacity": "0.18" });
   const gs2 = _svgNS("stop", { offset: "100%", "stop-color": "#FFD700", "stop-opacity": "0"    });
   gr.appendChild(gs1); gr.appendChild(gs2);
   defs.appendChild(gr);
+  // Golden drop-shadow for trophy image
+  const tgf = _svgNS("filter", { id: "rbk-trophy-glow", x: "-60%", y: "-60%", width: "220%", height: "220%" });
+  const tds = _svgNS("feDropShadow", { dx: "0", dy: "0", stdDeviation: "5", "flood-color": "#FFD700", "flood-opacity": "0.9" });
+  tgf.appendChild(tds);
+  defs.appendChild(tgf);
   svg.appendChild(defs);
 
   /* ── background ── */
@@ -979,21 +999,35 @@ function _buildRadialSVG() {
   addInner(qfwPts,  "qfw",  QF);
   addInner(sfwPts,  "sfw",  SF);
 
-  /* ── center (trophy / champion) ── */
+  /* ── center trophy ── */
   {
-    const finRes  = bracketResults[FIN.id];
-    const champ   = (finRes?.winner && bracketTeams[FIN.id]?.[finRes.winner]) || null;
+    const finRes = bracketResults[FIN.id];
+    const champ  = (finRes?.winner && bracketTeams[FIN.id]?.[finRes.winner]) || null;
     const cg = _svgNS("g", { transform: `translate(${_RBK.CX},${_RBK.CY})` });
-    cg.appendChild(_svgNS("circle", { r: 19, fill: "#12100a", stroke: "#FFD700", "stroke-width": "1.5", opacity: "0.95" }));
-    const ct = _svgNS("text", {
-      "font-size": "19",
-      "text-anchor": "middle",
-      "dominant-baseline": "central",
-      y: "1",
-      "font-family": "system-ui, sans-serif",
+    // Dark backing circle with golden border
+    cg.appendChild(_svgNS("circle", { r: 22, fill: "#0d0f0a", stroke: "#FFD700", "stroke-width": "1.5", opacity: "0.95" }));
+    // trophy.png image centered, with golden glow
+    const timg = _svgNS("image", {
+      href: "trophy.png",
+      x: -16, y: -20,
+      width: 32,
+      height: 32,
+      preserveAspectRatio: "xMidYMid meet",
+      filter: "url(#rbk-trophy-glow)",
     });
-    ct.textContent = champ ? champ.flag : "🏆";
-    cg.appendChild(ct);
+    cg.appendChild(timg);
+    // If champion is set, show their flag as a small badge at the bottom of the center circle
+    if (champ) {
+      const cf = _svgNS("text", {
+        "font-size": "10",
+        "text-anchor": "middle",
+        "dominant-baseline": "auto",
+        y: "21",
+        "font-family": "system-ui, sans-serif",
+      });
+      cf.textContent = champ.flag;
+      cg.appendChild(cf);
+    }
     svg.appendChild(cg);
   }
 
