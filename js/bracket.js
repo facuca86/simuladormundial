@@ -845,7 +845,7 @@ let _radialInfoModal = null;
 const _RBK = {
   CX: 180, CY: 180,
   R:  { team: 150, r32w: 118, r16w: 88, qfw: 60, sfw: 36 },
-  NR: { team: 11,  r32w: 7.5, r16w: 6,  qfw: 5,  sfw: 4.5 },
+  NR: { team: 11,  r32w: 11,  r16w: 11,  qfw: 11,  sfw: 11  },
 };
 
 function _rbkAngle(slot) {
@@ -885,6 +885,10 @@ function _buildRadialSVG() {
   const gs2 = _svgNS("stop", { offset: "100%", "stop-color": "#FFD700", "stop-opacity": "0"    });
   gr.appendChild(gs1); gr.appendChild(gs2);
   defs.appendChild(gr);
+  // Circular clip used on all flag-text so emoji can't overflow node circle
+  const cp = _svgNS("clipPath", { id: "rbk-node-clip" });
+  cp.appendChild(_svgNS("circle", { r: String(_RBK.NR.team) }));
+  defs.appendChild(cp);
   // Golden drop-shadow for trophy image (larger region to accommodate bigger trophy)
   const tgf = _svgNS("filter", { id: "rbk-trophy-glow", x: "-80%", y: "-80%", width: "260%", height: "260%" });
   const tds = _svgNS("feDropShadow", { dx: "0", dy: "0", stdDeviation: "8", "flood-color": "#FFD700", "flood-opacity": "0.95" });
@@ -986,10 +990,10 @@ function _buildRadialSVG() {
       }));
       if (team) {
         const t = _svgNS("text", {
-          "font-size": Math.round(nr * 1.4),
+          "font-size": Math.round(nr * 1.2),
           "text-anchor": "middle",
           "dominant-baseline": "central",
-          y: "0.5",
+          "clip-path": "url(#rbk-node-clip)",
           "font-family": "system-ui, sans-serif",
         });
         t.textContent = team.flag;
@@ -1056,10 +1060,10 @@ function _buildRadialSVG() {
       }));
       if (team) {
         const t = _svgNS("text", {
-          "font-size": "13",
+          "font-size": String(Math.round(nr * 1.2)),
           "text-anchor": "middle",
           "dominant-baseline": "central",
-          y: "0.5",
+          "clip-path": "url(#rbk-node-clip)",
           "font-family": "system-ui, sans-serif",
         });
         t.textContent = team.flag;
