@@ -273,7 +273,33 @@ export function buildBracket(container, qualified) {
   });
   container.appendChild(resetBtn);
   container.appendChild(scrollWrapper);
+
+  // ── Radial toggle (mobile only via CSS) ──
+  const radialToggle = document.createElement("button");
+  radialToggle.type = "button";
+  radialToggle.className = "btn-radial-toggle";
+  radialToggle.textContent = "Ver llaves";
+
+  container.appendChild(radialToggle);
   container.appendChild(buildMobileView());
+
+  _radialContainerEl = document.createElement("div");
+  _radialContainerEl.className = "bracket-radial";
+  container.appendChild(_radialContainerEl);
+
+  radialToggle.addEventListener("click", () => {
+    _radialActive = !_radialActive;
+    if (_radialActive) {
+      _rebuildRadialSVG();
+      bracketRoot.classList.add("bracket--radial-active");
+      radialToggle.textContent = "Vista normal";
+      radialToggle.classList.add("btn-radial-toggle--active");
+    } else {
+      bracketRoot.classList.remove("bracket--radial-active");
+      radialToggle.textContent = "Ver llaves";
+      radialToggle.classList.remove("btn-radial-toggle--active");
+    }
+  });
 
   // Champion banner (fixed at page bottom, created once, hidden outside bracket tab)
   if (!document.getElementById("champion-banner")) {
@@ -608,6 +634,7 @@ function renderBracketTeams() {
   });
 
   updateBracketProbBars();
+  _updateRadialIfVisible();
 }
 
 function findMatch(id) {
@@ -790,6 +817,302 @@ function launchConfetti() {
   }
 
   requestAnimationFrame(animate);
+}
+
+// ─── Vista Radial (llaves circulares, mobile only) ───────────────────────────
+let _radialActive = false;
+let _radialContainerEl = null;
+let _radialInfoOverlay = null;
+let _radialInfoModal = null;
+
+const _RBK = {
+  CX: 180, CY: 180,
+  R:  { team: 150, r32w: 118, r16w: 88, qfw: 60, sfw: 36 },
+  NR: { team: 11,  r32w: 7.5, r16w: 6,  qfw: 5,  sfw: 4.5 },
+};
+
+function _rbkAngle(slot) {
+  return -Math.PI / 2 + slot * (2 * Math.PI / 32);
+}
+
+function _rbkPt(r, a) {
+  return [_RBK.CX + r * Math.cos(a), _RBK.CY + r * Math.sin(a)];
+}
+
+function _svgNS(tag, attrs) {
+  const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  if (attrs) for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+  return el;
+}
+
+function _buildRadialSVG() {
+  const { eliminatedCodes } = getBracketStats();
+  const R32 = ROUNDS[0].matches;
+  const R16 = ROUNDS[1].matches;
+  const QF  = ROUNDS[2].matches;
+  const SF  = ROUNDS[3].matches;
+  const FIN = ROUNDS[4].matches[0];
+
+  const svg = _svgNS("svg", { viewBox: "0 0 360 360", xmlns: "http://www.w3.org/2000/svg" });
+  svg.style.cssText = "width:100%;max-width:420px;display:block;margin:0 auto;touch-action:manipulation;overflow:hidden";
+
+  /* ── defs ── */
+  const defs = _svgNS("defs");
+  const gf = _svgNS("filter", { id: "rbk-gray" });
+  gf.appendChild(_svgNS("feColorMatrix", { type: "saturate", values: "0" }));
+  defs.appendChild(gf);
+  const gr = _svgNS("radialGradient", { id: "rbk-glow", cx: "50%", cy: "50%", r: "38%", fx: "50%", fy: "50%" });
+  const gs1 = _svgNS("stop", { offset: "0%",   "stop-color": "#FFD700", "stop-opacity": "0.18" });
+  const gs2 = _svgNS("stop", { offset: "100%", "stop-color": "#FFD700", "stop-opacity": "0"    });
+  gr.appendChild(gs1); gr.appendChild(gs2);
+  defs.appendChild(gr);
+  svg.appendChild(defs);
+
+  /* ── background ── */
+  svg.appendChild(_svgNS("rect", { width: 360, height: 360, fill: "#0a0e1a" }));
+  svg.appendChild(_svgNS("circle", { cx: 180, cy: 180, r: 180, fill: "url(#rbk-glow)" }));
+
+  /* ── node positions ── */
+  const outerPts = Array.from({ length: 32 }, (_, s) => _rbkPt(_RBK.R.team, _rbkAngle(s)));
+  const r32wPts  = Array.from({ length: 16 }, (_, k) => _rbkPt(_RBK.R.r32w, _rbkAngle(2*k + 0.5)));
+  const r16wPts  = Array.from({ length: 8  }, (_, k) => _rbkPt(_RBK.R.r16w, _rbkAngle(4*k + 1.5)));
+  const qfwPts   = Array.from({ length: 4  }, (_, k) => _rbkPt(_RBK.R.qfw,  _rbkAngle(8*k + 3.5)));
+  const sfwPts   = Array.from({ length: 2  }, (_, k) => _rbkPt(_RBK.R.sfw,  _rbkAngle(16*k + 7.5)));
+
+  /* ── lit-edge keys ── */
+  const lit = new Set();
+  const _checkLit = (m, k, prefix) => {
+    const res = bracketResults[m.id];
+    const ht  = bracketTeams[m.id]?.home;
+    const at  = bracketTeams[m.id]?.away;
+    if (res?.winner && ht && at) lit.add(`${prefix}_${k}_${res.winner === "home" ? "h" : "a"}`);
+  };
+  R32.forEach((m, k) => _checkLit(m, k, "r32"));
+  R16.forEach((m, k) => _checkLit(m, k, "r16"));
+  QF.forEach( (m, k) => _checkLit(m, k, "qf"));
+  SF.forEach( (m, k) => _checkLit(m, k, "sf"));
+  {
+    const res = bracketResults[FIN.id];
+    const ht  = bracketTeams[FIN.id]?.home;
+    const at  = bracketTeams[FIN.id]?.away;
+    if (res?.winner && ht && at) lit.add(res.winner === "home" ? "fin_h" : "fin_a");
+  }
+
+  /* ── lines ── */
+  const lineG = _svgNS("g");
+  const ln = (x1, y1, x2, y2, key) => {
+    const on = lit.has(key);
+    lineG.appendChild(_svgNS("line", {
+      x1: x1.toFixed(2), y1: y1.toFixed(2),
+      x2: x2.toFixed(2), y2: y2.toFixed(2),
+      stroke: on ? "#FFD700" : "#2a3558",
+      "stroke-width": on ? "1.5" : "0.8",
+      opacity: on ? "1" : "0.5",
+      "stroke-linecap": "round",
+    }));
+  };
+  // outer → r32w
+  R32.forEach((_, k) => {
+    const [hx, hy] = outerPts[2*k];
+    const [ax, ay] = outerPts[2*k+1];
+    const [wx, wy] = r32wPts[k];
+    ln(hx, hy, wx, wy, `r32_${k}_h`);
+    ln(ax, ay, wx, wy, `r32_${k}_a`);
+  });
+  // r32w → r16w
+  R16.forEach((_, k) => {
+    const [hx, hy] = r32wPts[2*k];
+    const [ax, ay] = r32wPts[2*k+1];
+    const [wx, wy] = r16wPts[k];
+    ln(hx, hy, wx, wy, `r16_${k}_h`);
+    ln(ax, ay, wx, wy, `r16_${k}_a`);
+  });
+  // r16w → qfw
+  QF.forEach((_, k) => {
+    const [hx, hy] = r16wPts[2*k];
+    const [ax, ay] = r16wPts[2*k+1];
+    const [wx, wy] = qfwPts[k];
+    ln(hx, hy, wx, wy, `qf_${k}_h`);
+    ln(ax, ay, wx, wy, `qf_${k}_a`);
+  });
+  // qfw → sfw
+  SF.forEach((_, k) => {
+    const [hx, hy] = qfwPts[2*k];
+    const [ax, ay] = qfwPts[2*k+1];
+    const [wx, wy] = sfwPts[k];
+    ln(hx, hy, wx, wy, `sf_${k}_h`);
+    ln(ax, ay, wx, wy, `sf_${k}_a`);
+  });
+  // sfw → center
+  sfwPts.forEach(([x, y], k) => ln(x, y, _RBK.CX, _RBK.CY, k === 0 ? "fin_h" : "fin_a"));
+  svg.appendChild(lineG);
+
+  /* ── inner winner nodes ── */
+  const addInner = (pts, nrKey, matches) => {
+    pts.forEach(([x, y], k) => {
+      const m   = matches[k];
+      const res = m ? bracketResults[m.id] : null;
+      const team = (res?.winner && bracketTeams[m.id]?.[res.winner]) || null;
+      const nr  = _RBK.NR[nrKey];
+      const g   = _svgNS("g", { transform: `translate(${x.toFixed(2)},${y.toFixed(2)})` });
+      g.appendChild(_svgNS("circle", {
+        r: nr, fill: "#131929",
+        stroke: team ? "#FFD70055" : "#1c2540",
+        "stroke-width": "0.8",
+      }));
+      if (team) {
+        const t = _svgNS("text", {
+          "font-size": Math.round(nr * 1.4),
+          "text-anchor": "middle",
+          "dominant-baseline": "central",
+          y: "0.5",
+          "font-family": "system-ui, sans-serif",
+        });
+        t.textContent = team.flag;
+        g.appendChild(t);
+      }
+      svg.appendChild(g);
+    });
+  };
+  addInner(r32wPts, "r32w", R32);
+  addInner(r16wPts, "r16w", R16);
+  addInner(qfwPts,  "qfw",  QF);
+  addInner(sfwPts,  "sfw",  SF);
+
+  /* ── center (trophy / champion) ── */
+  {
+    const finRes  = bracketResults[FIN.id];
+    const champ   = (finRes?.winner && bracketTeams[FIN.id]?.[finRes.winner]) || null;
+    const cg = _svgNS("g", { transform: `translate(${_RBK.CX},${_RBK.CY})` });
+    cg.appendChild(_svgNS("circle", { r: 19, fill: "#12100a", stroke: "#FFD700", "stroke-width": "1.5", opacity: "0.95" }));
+    const ct = _svgNS("text", {
+      "font-size": "19",
+      "text-anchor": "middle",
+      "dominant-baseline": "central",
+      y: "1",
+      "font-family": "system-ui, sans-serif",
+    });
+    ct.textContent = champ ? champ.flag : "🏆";
+    cg.appendChild(ct);
+    svg.appendChild(cg);
+  }
+
+  /* ── outer ring team nodes (top layer) ── */
+  R32.forEach((m, k) => {
+    for (const [off, side] of [[0, "home"], [1, "away"]]) {
+      const [x, y] = outerPts[2*k + off];
+      const team   = bracketTeams[m.id]?.[side] ?? null;
+      const isElim = team && eliminatedCodes.has(team.code);
+      const nr     = _RBK.NR.team;
+      const g = _svgNS("g", {
+        transform: `translate(${x.toFixed(2)},${y.toFixed(2)})`,
+        "data-match-id": m.id,
+        "data-side": side,
+      });
+      g.style.cursor = "pointer";
+      if (isElim) { g.setAttribute("filter", "url(#rbk-gray)"); g.setAttribute("opacity", "0.4"); }
+      g.appendChild(_svgNS("circle", {
+        r: nr, fill: "#131929",
+        stroke: isElim ? "#1c2540" : "#3a4a6a",
+        "stroke-width": "1",
+      }));
+      if (team) {
+        const t = _svgNS("text", {
+          "font-size": "13",
+          "text-anchor": "middle",
+          "dominant-baseline": "central",
+          y: "0.5",
+          "font-family": "system-ui, sans-serif",
+        });
+        t.textContent = team.flag;
+        g.appendChild(t);
+      } else {
+        g.appendChild(_svgNS("circle", { r: "3.5", fill: "#2a3558" }));
+      }
+      svg.appendChild(g);
+    }
+  });
+
+  return svg;
+}
+
+function _ensureRadialModal() {
+  if (_radialInfoOverlay) return;
+  _radialInfoOverlay = document.createElement("div");
+  _radialInfoOverlay.className = "sct-modal-overlay";
+  _radialInfoModal = document.createElement("div");
+  _radialInfoModal.className = "sct-modal";
+  _radialInfoModal.setAttribute("role", "dialog");
+  _radialInfoModal.setAttribute("aria-modal", "true");
+  _radialInfoOverlay.appendChild(_radialInfoModal);
+  document.body.appendChild(_radialInfoOverlay);
+  _radialInfoOverlay.addEventListener("click", e => {
+    if (e.target === _radialInfoOverlay) _closeRadialModal();
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") _closeRadialModal();
+  });
+}
+
+function _closeRadialModal() {
+  _radialInfoOverlay?.classList.remove("sct-modal-overlay--visible");
+  document.body.style.overflow = "";
+}
+
+function _openRadialModal(matchId, side) {
+  _ensureRadialModal();
+  const m    = findMatch(matchId);
+  if (!m) return;
+  const team = bracketTeams[matchId]?.[side];
+  const res  = bracketResults[matchId];
+  const seed = side === "home" ? m.seedHome : m.seedAway;
+
+  const teamLine = team
+    ? `<div class="sct-item"><span class="sct-flag">${team.flag}</span><span class="sct-name">${team.name} (${team.code})</span></div>`
+    : `<div class="sct-item"><span class="sct-name" style="color:var(--text-muted)">${seed}</span></div>`;
+
+  let resultLine = "";
+  if (res?.winner) {
+    const winner = bracketTeams[matchId]?.[res.winner];
+    const loser  = bracketTeams[matchId]?.[res.winner === "home" ? "away" : "home"];
+    if (winner && loser) {
+      resultLine = `<div class="sct-stale" style="margin-top:.5rem;font-size:.8rem;color:var(--text-muted)">
+        ✓ ${winner.flag} ${winner.name} venció a ${loser.flag} ${loser.name}
+      </div>`;
+    }
+  }
+
+  _radialInfoModal.innerHTML = `
+    <div class="sct-modal__header">
+      <div>
+        <div class="sct-modal__title">${matchId.toUpperCase().replace("_", " ")}</div>
+        <div class="sct-modal__subtitle">${m.date} · ${m.venue}</div>
+      </div>
+      <button class="sct-modal__close" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="sct-modal__body">${teamLine}${resultLine}</div>`;
+
+  _radialInfoModal.querySelector(".sct-modal__close").addEventListener("click", _closeRadialModal);
+  _radialInfoOverlay.classList.add("sct-modal-overlay--visible");
+  document.body.style.overflow = "hidden";
+}
+
+function _updateRadialIfVisible() {
+  if (!_radialActive || !_radialContainerEl) return;
+  _rebuildRadialSVG();
+}
+
+function _rebuildRadialSVG() {
+  if (!_radialContainerEl) return;
+  const newSvg = _buildRadialSVG();
+  const old = _radialContainerEl.querySelector("svg");
+  if (old) old.replaceWith(newSvg);
+  else _radialContainerEl.appendChild(newSvg);
+  newSvg.addEventListener("click", e => {
+    const g = e.target.closest?.("g[data-match-id]");
+    if (!g) return;
+    _openRadialModal(g.dataset.matchId, g.dataset.side);
+  });
 }
 
 // ─── FEATURE: Candidatos por slot R32 ────────────────────────────────────────

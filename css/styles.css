@@ -2225,3 +2225,48 @@ tr.qualified .prob-cell {
   flex-shrink: 0;
   padding-left: 0.35rem;
 }
+
+/* ── Vista Radial (llaves circulares) — mobile only ─────────────────────── */
+.btn-radial-toggle {
+  display: none;
+}
+
+.bracket-radial {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .btn-radial-toggle {
+    display: block;
+    margin: 0.6rem auto 0.25rem;
+    background: var(--surface2);
+    color: var(--accent2);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    padding: 0.45rem 1.4rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .btn-radial-toggle--active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent2);
+  }
+
+  /* When radial is active: show radial container, hide mobile round tabs */
+  .bracket--radial-active .bracket-mobile {
+    display: none;
+  }
+
+  .bracket--radial-active .bracket-radial {
+    display: block;
+    padding: 0.25rem 0 1rem;
+    width: 100%;
+    overflow: hidden;
+  }
+}
