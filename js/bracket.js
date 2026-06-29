@@ -202,6 +202,7 @@ export function refreshBracketSeeds(qualified) {
   }
   propagateWinners();
   renderBracketTeams();
+  syncBracketRadios();
   updateChampion();
 }
 
@@ -839,8 +840,6 @@ function launchConfetti() {
 // ─── Vista Radial (llaves circulares, mobile only) ───────────────────────────
 let _radialActive = false;
 let _radialContainerEl = null;
-let _radialInfoOverlay = null;
-let _radialInfoModal = null;
 
 const _RBK = {
   CX: 180, CY: 180,
@@ -976,13 +975,19 @@ function _buildRadialSVG() {
   svg.appendChild(lineG);
 
   /* ── inner winner nodes ── */
-  const addInner = (pts, nrKey, matches) => {
+  const addInner = (pts, nrKey, matches, nextMatches) => {
     pts.forEach(([x, y], k) => {
       const m   = matches[k];
       const res = m ? bracketResults[m.id] : null;
       const team = (res?.winner && bracketTeams[m.id]?.[res.winner]) || null;
       const nr  = _RBK.NR[nrKey];
-      const g   = _svgNS("g", { transform: `translate(${x.toFixed(2)},${y.toFixed(2)})` });
+      // Wire up the click target to the *next* round's match (the one this winner feeds into)
+      const nextM    = nextMatches?.[Math.floor(k / 2)];
+      const nextSide = k % 2 === 0 ? "home" : "away";
+      const gAttrs   = { transform: `translate(${x.toFixed(2)},${y.toFixed(2)})` };
+      if (nextM) { gAttrs["data-match-id"] = nextM.id; gAttrs["data-side"] = nextSide; }
+      const g = _svgNS("g", gAttrs);
+      if (nextM) g.style.cursor = "pointer";
       g.appendChild(_svgNS("circle", {
         r: nr, fill: "#131929",
         stroke: team ? "#FFD70055" : "#1c2540",
@@ -1002,10 +1007,10 @@ function _buildRadialSVG() {
       svg.appendChild(g);
     });
   };
-  addInner(r32wPts, "r32w", R32);
-  addInner(r16wPts, "r16w", R16);
-  addInner(qfwPts,  "qfw",  QF);
-  addInner(sfwPts,  "sfw",  SF);
+  addInner(r32wPts, "r32w", R32, R16);
+  addInner(r16wPts, "r16w", R16, QF);
+  addInner(qfwPts,  "qfw",  QF,  SF);
+  addInner(sfwPts,  "sfw",  SF,  ROUNDS[4].matches);
 
   /* ── center trophy ── */
   {
@@ -1078,67 +1083,6 @@ function _buildRadialSVG() {
   return svg;
 }
 
-function _ensureRadialModal() {
-  if (_radialInfoOverlay) return;
-  _radialInfoOverlay = document.createElement("div");
-  _radialInfoOverlay.className = "sct-modal-overlay";
-  _radialInfoModal = document.createElement("div");
-  _radialInfoModal.className = "sct-modal";
-  _radialInfoModal.setAttribute("role", "dialog");
-  _radialInfoModal.setAttribute("aria-modal", "true");
-  _radialInfoOverlay.appendChild(_radialInfoModal);
-  document.body.appendChild(_radialInfoOverlay);
-  _radialInfoOverlay.addEventListener("click", e => {
-    if (e.target === _radialInfoOverlay) _closeRadialModal();
-  });
-  document.addEventListener("keydown", e => {
-    if (e.key === "Escape") _closeRadialModal();
-  });
-}
-
-function _closeRadialModal() {
-  _radialInfoOverlay?.classList.remove("sct-modal-overlay--visible");
-  document.body.style.overflow = "";
-}
-
-function _openRadialModal(matchId, side) {
-  _ensureRadialModal();
-  const m    = findMatch(matchId);
-  if (!m) return;
-  const team = bracketTeams[matchId]?.[side];
-  const res  = bracketResults[matchId];
-  const seed = side === "home" ? m.seedHome : m.seedAway;
-
-  const teamLine = team
-    ? `<div class="sct-item"><span class="sct-flag">${team.flag}</span><span class="sct-name">${team.name} (${team.code})</span></div>`
-    : `<div class="sct-item"><span class="sct-name" style="color:var(--text-muted)">${seed}</span></div>`;
-
-  let resultLine = "";
-  if (res?.winner) {
-    const winner = bracketTeams[matchId]?.[res.winner];
-    const loser  = bracketTeams[matchId]?.[res.winner === "home" ? "away" : "home"];
-    if (winner && loser) {
-      resultLine = `<div class="sct-stale" style="margin-top:.5rem;font-size:.8rem;color:var(--text-muted)">
-        ✓ ${winner.flag} ${winner.name} venció a ${loser.flag} ${loser.name}
-      </div>`;
-    }
-  }
-
-  _radialInfoModal.innerHTML = `
-    <div class="sct-modal__header">
-      <div>
-        <div class="sct-modal__title">${matchId.toUpperCase().replace("_", " ")}</div>
-        <div class="sct-modal__subtitle">${m.date} · ${m.venue}</div>
-      </div>
-      <button class="sct-modal__close" aria-label="Cerrar">✕</button>
-    </div>
-    <div class="sct-modal__body">${teamLine}${resultLine}</div>`;
-
-  _radialInfoModal.querySelector(".sct-modal__close").addEventListener("click", _closeRadialModal);
-  _radialInfoOverlay.classList.add("sct-modal-overlay--visible");
-  document.body.style.overflow = "hidden";
-}
-
 function _updateRadialIfVisible() {
   if (!_radialActive || !_radialContainerEl) return;
   _rebuildRadialSVG();
@@ -1153,7 +1097,7 @@ function _rebuildRadialSVG() {
   newSvg.addEventListener("click", e => {
     const g = e.target.closest?.("g[data-match-id]");
     if (!g) return;
-    _openRadialModal(g.dataset.matchId, g.dataset.side);
+    handleRadioSelection(g.dataset.matchId, g.dataset.side);
   });
 }
 
