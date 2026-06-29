@@ -2226,47 +2226,70 @@ tr.qualified .prob-cell {
   padding-left: 0.35rem;
 }
 
-/* ── Vista Radial (llaves circulares) — mobile only ─────────────────────── */
+/* ── Vista Radial (llaves circulares) — desktop + mobile ─────────────────── */
 .btn-radial-toggle {
-  display: none;
+  display: block;
+  margin: 0.6rem auto 0.4rem;
+  background: var(--surface2);
+  color: var(--accent2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 1.5rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: background 0.15s, color 0.15s;
 }
 
+.btn-radial-toggle--active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent2);
+}
+
+/* Radial container: hidden by default */
 .bracket-radial {
   display: none;
 }
 
+/* When radial active — show radial, hide the bracket tree */
+.bracket--radial-active .bracket-radial {
+  display: block;
+  padding: 0.5rem 0 1.5rem;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Desktop: hide the horizontal scroll tree */
+@media (min-width: 769px) {
+  .bracket--radial-active .bracket-scroll {
+    display: none;
+  }
+}
+
+/* Mobile: hide the stacked-rounds tabs */
 @media (max-width: 768px) {
-  .btn-radial-toggle {
-    display: block;
-    margin: 0.6rem auto 0.25rem;
-    background: var(--surface2);
-    color: var(--accent2);
-    border: 1px solid var(--accent);
-    border-radius: var(--radius-sm);
-    padding: 0.45rem 1.4rem;
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 1px;
-    cursor: pointer;
-    text-transform: uppercase;
-    transition: background 0.15s, color 0.15s;
-  }
-
-  .btn-radial-toggle--active {
-    background: var(--accent);
-    color: #fff;
-    border-color: var(--accent2);
-  }
-
-  /* When radial is active: show radial container, hide mobile round tabs */
   .bracket--radial-active .bracket-mobile {
     display: none;
   }
+}
 
-  .bracket--radial-active .bracket-radial {
-    display: block;
-    padding: 0.25rem 0 1rem;
-    width: 100%;
-    overflow: hidden;
-  }
+/* ── Trophy in Final sub-tab (mobile) ────────────────────────────────────── */
+.mobile-final__trophy {
+  text-align: center;
+  padding: 0.75rem 0 0.5rem;
+}
+
+.mobile-final__trophy-img {
+  width: 88px;
+  height: auto;
+  filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.7));
+  animation: trophy-glow-pulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes trophy-glow-pulse {
+  from { filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.5)); }
+  to   { filter: drop-shadow(0 0 18px rgba(255, 215, 0, 0.85)); }
 }
