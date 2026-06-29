@@ -277,7 +277,9 @@ export function buildBracket(container, qualified) {
   const radialToggle = document.createElement("button");
   radialToggle.type = "button";
   radialToggle.className = "btn-radial-toggle";
-  radialToggle.textContent = "Ver llaves";
+  radialToggle.innerHTML =
+    '<span class="btn-radial-toggle__mobile">VER LLAVES</span>' +
+    '<span class="btn-radial-toggle__desktop">VISTA RADIAL</span>';
   container.appendChild(radialToggle);
 
   container.appendChild(scrollWrapper);
@@ -296,7 +298,9 @@ export function buildBracket(container, qualified) {
       radialToggle.classList.add("btn-radial-toggle--active");
     } else {
       bracketRoot.classList.remove("bracket--radial-active");
-      radialToggle.textContent = "Ver llaves";
+      radialToggle.innerHTML =
+        '<span class="btn-radial-toggle__mobile">VER LLAVES</span>' +
+        '<span class="btn-radial-toggle__desktop">VISTA RADIAL</span>';
       radialToggle.classList.remove("btn-radial-toggle--active");
     }
   });
@@ -881,9 +885,9 @@ function _buildRadialSVG() {
   const gs2 = _svgNS("stop", { offset: "100%", "stop-color": "#FFD700", "stop-opacity": "0"    });
   gr.appendChild(gs1); gr.appendChild(gs2);
   defs.appendChild(gr);
-  // Golden drop-shadow for trophy image
-  const tgf = _svgNS("filter", { id: "rbk-trophy-glow", x: "-60%", y: "-60%", width: "220%", height: "220%" });
-  const tds = _svgNS("feDropShadow", { dx: "0", dy: "0", stdDeviation: "5", "flood-color": "#FFD700", "flood-opacity": "0.9" });
+  // Golden drop-shadow for trophy image (larger region to accommodate bigger trophy)
+  const tgf = _svgNS("filter", { id: "rbk-trophy-glow", x: "-80%", y: "-80%", width: "260%", height: "260%" });
+  const tds = _svgNS("feDropShadow", { dx: "0", dy: "0", stdDeviation: "8", "flood-color": "#FFD700", "flood-opacity": "0.95" });
   tgf.appendChild(tds);
   defs.appendChild(tgf);
   svg.appendChild(defs);
@@ -1004,25 +1008,25 @@ function _buildRadialSVG() {
     const finRes = bracketResults[FIN.id];
     const champ  = (finRes?.winner && bracketTeams[FIN.id]?.[finRes.winner]) || null;
     const cg = _svgNS("g", { transform: `translate(${_RBK.CX},${_RBK.CY})` });
-    // Dark backing circle with golden border
-    cg.appendChild(_svgNS("circle", { r: 22, fill: "#0d0f0a", stroke: "#FFD700", "stroke-width": "1.5", opacity: "0.95" }));
-    // trophy.png image centered, with golden glow
+    // Trophy image — free-standing (no backing circle), sized relative to innermost ring radius (sfw=36)
+    // Use ~70% of sfw radius so it stays clear of inner nodes on small screens
+    const tSize = Math.round(_RBK.R.sfw * 1.4); // ≈50 units (viewBox 360)
     const timg = _svgNS("image", {
       href: "trophy.png",
-      x: -16, y: -20,
-      width: 32,
-      height: 32,
+      x: -tSize / 2, y: -tSize / 2,
+      width: tSize,
+      height: tSize,
       preserveAspectRatio: "xMidYMid meet",
       filter: "url(#rbk-trophy-glow)",
     });
     cg.appendChild(timg);
-    // If champion is set, show their flag as a small badge at the bottom of the center circle
+    // Champion flag badge slightly below the trophy
     if (champ) {
       const cf = _svgNS("text", {
-        "font-size": "10",
+        "font-size": "13",
         "text-anchor": "middle",
         "dominant-baseline": "auto",
-        y: "21",
+        y: String(tSize / 2 + 13),
         "font-family": "system-ui, sans-serif",
       });
       cf.textContent = champ.flag;
