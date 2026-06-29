@@ -424,7 +424,7 @@ function buildMobileView() {
     }
 
     for (const match of round.matches) {
-      roundDiv.appendChild(buildMatchBox(match));
+      roundDiv.appendChild(buildMatchBox(match, "mobile-"));
     }
 
     contentArea.appendChild(roundDiv);
@@ -505,7 +505,7 @@ function buildCenterColumn() {
   return col;
 }
 
-function buildMatchBox(match) {
+function buildMatchBox(match, namePrefix = "") {
   const box = document.createElement("div");
   box.className = "bracket-match";
   box.dataset.matchId = match.id;
@@ -520,8 +520,8 @@ function buildMatchBox(match) {
     `<span class="bracket-match__time">${match.time}&nbsp;(GMT${_fmtOffset(utcOffset)})&ensp;${argTime}&nbsp;(GMT-3)</span>`;
   box.appendChild(info);
 
-  box.appendChild(buildTeamSlot(match.id, "home", match.seedHome));
-  box.appendChild(buildTeamSlot(match.id, "away", match.seedAway));
+  box.appendChild(buildTeamSlot(match.id, "home", match.seedHome, namePrefix));
+  box.appendChild(buildTeamSlot(match.id, "away", match.seedAway, namePrefix));
 
   const probBar = document.createElement("div");
   probBar.className = "bracket-prob-bar";
@@ -581,7 +581,7 @@ export function updateBracketProbBars() {
   });
 }
 
-function buildTeamSlot(matchId, side, seedLabel) {
+function buildTeamSlot(matchId, side, seedLabel, namePrefix = "") {
   const slot = document.createElement("div");
   slot.className = "bracket-team";
   slot.dataset.matchId = matchId;
@@ -589,7 +589,7 @@ function buildTeamSlot(matchId, side, seedLabel) {
 
   const radio = document.createElement("input");
   radio.type = "radio";
-  radio.name = `match-${matchId}`;
+  radio.name = `${namePrefix}match-${matchId}`;
   radio.value = side;
   radio.className = "bracket-radio";
   radio.dataset.matchId = matchId;
