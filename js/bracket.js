@@ -315,6 +315,7 @@ export function buildBracket(container, qualified) {
   }
 
   updateChampion();
+  syncBracketRadios();
   _setupSlotDelegation();
 
   window.addEventListener("resize", scaleBracketToFit);
@@ -651,6 +652,7 @@ function renderBracketTeams() {
     }
   });
 
+  syncBracketRadios();
   updateBracketProbBars();
   _updateRadialIfVisible();
 }
