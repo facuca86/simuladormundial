@@ -2249,6 +2249,15 @@ tr.qualified .prob-cell {
   border-color: var(--accent2);
 }
 
+/* Responsive label: show mobile text on small screens, desktop text on large */
+.btn-radial-toggle__desktop { display: none; }
+.btn-radial-toggle__mobile  { display: inline; }
+
+@media (min-width: 769px) {
+  .btn-radial-toggle__desktop { display: inline; }
+  .btn-radial-toggle__mobile  { display: none; }
+}
+
 /* Radial container: hidden by default */
 .bracket-radial {
   display: none;
