@@ -5,6 +5,7 @@
 import { runMonteCarlo, predCache } from "./predictor.js";
 import { TEAMS } from "./teams.js";
 import { saveSimulationToFirebase, computeStateHash } from "./storage.js";
+import { getFixedBracketResults } from "./bracket.js";
 
 function pct(v) {
   if (v === undefined || v === null) return "–";
@@ -27,6 +28,7 @@ function buildResultRows(probs) {
           <span class="team-name">${team.name}</span>
         </td>
         <td class="pct-cell">${pct(p.group)}</td>
+        <td class="pct-cell">${pct(p.octavos)}</td>
         <td class="pct-cell">${pct(p.qf)}</td>
         <td class="pct-cell">${pct(p.sf)}</td>
         <td class="pct-cell">${pct(p.final)}</td>
@@ -62,6 +64,7 @@ export function renderProbabilitiesView(container, GROUPS, state) {
                <th>#</th>
                <th class="team-col">Equipo</th>
                <th title="Probabilidad de avanzar desde la fase de grupos">Clasifica</th>
+               <th title="Probabilidad de llegar a octavos de final">Octavos</th>
                <th title="Probabilidad de llegar a cuartos de final">Cuartos</th>
                <th title="Probabilidad de llegar a semifinales">Semis</th>
                <th title="Probabilidad de llegar a la final">Final</th>
@@ -99,7 +102,7 @@ export function renderProbabilitiesView(container, GROUPS, state) {
     // Dar tiempo al navegador para redibujar el estado "Simulando…"
     // antes de bloquear el hilo con el cálculo Monte Carlo.
     setTimeout(() => {
-      const probs = runMonteCarlo(GROUPS, state, 2000);
+      const probs = runMonteCarlo(GROUPS, state, 2000, null, getFixedBracketResults());
       // Persistir en Firebase + localStorage para recuperar al recargar
       saveSimulationToFirebase({
         probabilities: probs,

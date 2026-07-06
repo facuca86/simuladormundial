@@ -265,7 +265,11 @@ function resolveSeed(seed, qualified) {
 // ─── Simulación de un bracket completo ────────────────────────────────────────
 // Acumula contadores por equipo. Devuelve el código del campeón.
 // slotCounts (opcional): acumula por slot R32 qué equipo lo ocupa en cada iteración.
-function simulateBracket(qualified, bestThirds, counts, strengthTable = STRENGTH, slotCounts = null) {
+// fixedResults (opcional): { matchId: winnerCode } con los resultados reales ya
+// cargados en el cuadro interactivo (bracket.js). Cuando el partido ya se jugó
+// en la realidad, se fuerza ese ganador en vez de re-simularlo, para que un
+// equipo ya eliminado deje de figurar con probabilidad de avanzar.
+function simulateBracket(qualified, bestThirds, counts, strengthTable = STRENGTH, slotCounts = null, fixedResults = null) {
   // Determinar combinación de terceros
   const top8     = bestThirds.slice(0, 8);
   const comboKey = top8.map(t => t.groupLabel).sort().join("");
@@ -292,48 +296,57 @@ function simulateBracket(qualified, bestThirds, counts, strengthTable = STRENGTH
     return { h: hCode, a: aCode };
   });
 
-  // R32 → 16 ganadores
-  const r32Out = r32.map(({ h, a }) => {
+  // Devuelve el ganador ya jugado en la realidad si el resultado del cuadro
+  // interactivo (fixedResults) corresponde a este emparejamiento simulado.
+  function _resolveWinner(matchId, h, a) {
+    const fixed = fixedResults?.[matchId];
+    if (fixed && (fixed === h || fixed === a)) return fixed;
+    return knockoutWinner(h, a, strengthTable);
+  }
+
+  // R32 → 16 ganadores (= equipos que llegan a octavos)
+  const r32Out = r32.map(({ h, a }, idx) => {
     if (!h && !a) return null;
     if (!h) return a;
     if (!a) return h;
-    return knockoutWinner(h, a, strengthTable);
+    return _resolveWinner(`r32_${idx + 1}`, h, a);
   });
+  for (const code of r32Out) if (code) counts[code].octavos++;
 
   // R16 → 8 ganadores (= equipos en cuartos)
-  const r16Out = R16_PAIRS.map(([i, j]) => {
+  const r16Out = R16_PAIRS.map(([i, j], idx) => {
     const h = r32Out[i], a = r32Out[j];
     if (!h && !a) return null;
     if (!h) return a;
     if (!a) return h;
-    return knockoutWinner(h, a, strengthTable);
+    return _resolveWinner(`r16_${idx + 1}`, h, a);
   });
   for (const code of r16Out) if (code) counts[code].qf++;
 
   // QF → 4 ganadores (= equipos en semis)
-  const qfOut = QF_PAIRS.map(([i, j]) => {
+  const qfOut = QF_PAIRS.map(([i, j], idx) => {
     const h = r16Out[i], a = r16Out[j];
     if (!h && !a) return null;
     if (!h) return a;
     if (!a) return h;
-    return knockoutWinner(h, a, strengthTable);
+    return _resolveWinner(`qf_${idx + 1}`, h, a);
   });
   for (const code of qfOut) if (code) counts[code].sf++;
 
   // SF → 2 finalistas
-  const sfOut = SF_PAIRS.map(([i, j]) => {
+  const sfOut = SF_PAIRS.map(([i, j], idx) => {
     const h = qfOut[i], a = qfOut[j];
     if (!h && !a) return null;
     if (!h) return a;
     if (!a) return h;
-    return knockoutWinner(h, a, strengthTable);
+    return _resolveWinner(`sf_${idx + 1}`, h, a);
   });
   for (const code of sfOut) if (code) counts[code].final++;
 
   // Final
   const [f1, f2] = sfOut;
   if (f1 && f2) {
-    const champion = knockoutWinner(f1, f2, strengthTable);
+    const champion = _resolveWinner("final_1", f1, f2);
     counts[champion].champion++;
     return champion;
   }
@@ -380,7 +393,7 @@ export function markCacheStale() {
 // strengthOverride: si se pasa un objeto de fuerzas pre-calculado (e.g. para
 // comparaciones en tests), se usa en lugar de llamar recalibrateStrengths.
 // En uso normal (UI y tests de invariantes) se deja en null → calibración híbrida.
-export function runMonteCarlo(GROUPS, state, iterations = 2000, strengthOverride = null) {
+export function runMonteCarlo(GROUPS, state, iterations = 2000, strengthOverride = null, fixedBracketResults = null) {
   // ── Ajuste bayesiano de fuerzas (UNA vez, fuera del loop) ────────────────
   // Depende solo de los partidos jugados (que no cambian entre iteraciones).
   // Los pendientes se simulan con estas fuerzas ya recalibradas.
@@ -433,7 +446,7 @@ export function runMonteCarlo(GROUPS, state, iterations = 2000, strengthOverride
   const counts = {};
   for (const group of GROUPS) {
     for (const code of group.teams) {
-      counts[code] = { group: 0, qf: 0, sf: 0, final: 0, champion: 0 };
+      counts[code] = { group: 0, octavos: 0, qf: 0, sf: 0, final: 0, champion: 0 };
     }
   }
 
@@ -470,7 +483,7 @@ export function runMonteCarlo(GROUPS, state, iterations = 2000, strengthOverride
 
     // 3. Calcular mejores terceros y simular bracket con fuerzas ajustadas
     const bestThirds = computeBestThirds(GROUPS, simBuf);
-    simulateBracket(qualified, bestThirds, counts, STRENGTH_ADJ, slotCounts);
+    simulateBracket(qualified, bestThirds, counts, STRENGTH_ADJ, slotCounts, fixedBracketResults);
   }
 
   // ── Convertir slotCounts a probabilidades ────────────────────────────────
@@ -490,6 +503,7 @@ export function runMonteCarlo(GROUPS, state, iterations = 2000, strengthOverride
   for (const [code, c] of Object.entries(counts)) {
     probs[code] = {
       group:    c.group    / iterations,
+      octavos:  c.octavos  / iterations,
       qf:       c.qf       / iterations,
       sf:       c.sf       / iterations,
       final:    c.final    / iterations,
