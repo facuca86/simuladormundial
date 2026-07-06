@@ -736,6 +736,27 @@ function updateChampion() {
   }
 }
 
+// ─── Resultados reales ya cargados en el cuadro (para el Monte Carlo) ────
+// Devuelve { matchId: winnerCode } sólo para partidos ya jugados en la
+// realidad (radio seleccionado) y con ambos equipos resueltos a un código
+// concreto. El motor de predicción usa esto para no re-simular partidos que
+// ya ocurrieron, evitando que un equipo eliminado siga figurando con
+// probabilidad de avanzar en la pestaña Probabilidades.
+export function getFixedBracketResults() {
+  const fixed = {};
+  for (const round of ROUNDS) {
+    for (const m of round.matches) {
+      const res = bracketResults[m.id];
+      if (!res || !res.winner) continue;
+      const hTeam = bracketTeams[m.id]?.home;
+      const aTeam = bracketTeams[m.id]?.away;
+      if (!hTeam || !aTeam) continue;
+      fixed[m.id] = res.winner === "home" ? hTeam.code : aTeam.code;
+    }
+  }
+  return fixed;
+}
+
 // ─── Estadísticas del cuadro para el contador del header ─────────────────
 export function getBracketStats() {
   const eliminatedCodes = new Set();
