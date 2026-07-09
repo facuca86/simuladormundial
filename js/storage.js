@@ -82,12 +82,15 @@ function _djb2Hash(str) {
 }
 
 /**
- * Genera un hash determinístico del estado de marcadores.
+ * Genera un hash determinístico del estado de marcadores + resultados de llaves.
  * Serializa groupId→fixtureId→{home,away} ordenando lexicográficamente los
  * groupIds y numéricamente los fixtureIds, para que el resultado sea idéntico
- * independientemente del orden de inserción en el objeto.
+ * independientemente del orden de inserción en el objeto. Incluye además los
+ * resultados fijos del bracket (bracketFixed: { matchId: winnerCode }) para que
+ * una simulación quede "desactualizada" tanto si cambia un marcador de grupo
+ * como si se define (o revierte) un ganador en las llaves.
  */
-export function computeStateHash(state) {
+export function computeStateHash(state, bracketFixed = {}) {
   const ordered = {};
   for (const groupId of Object.keys(state).sort()) {
     ordered[groupId] = {};
@@ -97,7 +100,13 @@ export function computeStateHash(state) {
       ordered[groupId][fixtureId] = { home: r.home ?? "", away: r.away ?? "" };
     }
   }
-  return _djb2Hash(JSON.stringify(ordered));
+
+  const orderedBracket = {};
+  for (const matchId of Object.keys(bracketFixed).sort()) {
+    orderedBracket[matchId] = bracketFixed[matchId];
+  }
+
+  return _djb2Hash(JSON.stringify({ groups: ordered, bracket: orderedBracket }));
 }
 
 // ─── Persistencia de simulación Monte Carlo ────────────────────────────────

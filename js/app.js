@@ -7,7 +7,7 @@ import {
 } from "./fixtures.js";
 import { computeStandings, canStillQualify, computeBestThirds } from "./standings.js";
 import { saveResults, loadResults, clearResults, loadResultsFromFirebase, loadSimulationFromFirebase, computeStateHash } from "./storage.js";
-import { buildBracket, refreshBracketSeeds, scaleBracketToFit, getBracketStats, updateBracketProbBars, updateR32SlotIndicators, applyBracketResultsFromFirebase } from "./bracket.js";
+import { buildBracket, refreshBracketSeeds, scaleBracketToFit, getBracketStats, updateBracketProbBars, updateR32SlotIndicators, applyBracketResultsFromFirebase, getFixedBracketResults } from "./bracket.js";
 import { renderThirdsView } from "./thirds.js";
 import { renderHistoriaView } from "./historia.js";
 import { markCacheStale, predCache, matchProbabilities, STADIUM_COUNTRY } from "./predictor.js";
@@ -138,7 +138,20 @@ function init() {
   renderThirdsView(document.getElementById("phase-thirds"), getQualifiedTeams());
   initTabs();
   updateStatusBar();
-  document.addEventListener("bracketUpdated", updateStatusBar);
+  document.addEventListener("bracketUpdated", () => {
+    updateStatusBar();
+    // Un pick de llaves cambia los resultados fijos que alimentan el Monte
+    // Carlo (ver getFixedBracketResults): la última simulación queda obsoleta
+    // igual que cuando cambia un marcador de grupo.
+    if (predCache.result !== null) {
+      markCacheStale();
+      updateStaleNotice(true);
+    }
+    refreshAllProbColumns();
+    updateAllGroupProbBars();
+    updateBracketProbBars();
+    updateR32SlotIndicators(GROUPS, state);
+  });
   // Cuando el predictor termina de simular, refrescar Prob% y barras 1X2
   document.addEventListener("predictorUpdated", () => {
     updateStaleNotice(false);
@@ -739,7 +752,7 @@ async function loadAndRestoreSimulation() {
     const payload = await loadSimulationFromFirebase();
     if (!payload || !payload.probabilities) return;
 
-    const currentHash = computeStateHash(state);
+    const currentHash = computeStateHash(state, getFixedBracketResults());
     const isStale = payload.stateHash !== currentHash;
 
     predCache.result      = payload.probabilities;
