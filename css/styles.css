@@ -592,9 +592,20 @@ td.pts {
   font-size: 0.88rem;
 }
 
-.bracket-mobile .bracket-radio {
-  width: 17px;
-  height: 17px;
+.bracket-mobile .bracket-score-input {
+  width: 34px;
+  height: 30px;
+  font-size: 0.9rem;
+}
+
+.bracket-mobile .bracket-pen-input {
+  width: 28px;
+  height: 24px;
+  font-size: 0.75rem;
+}
+
+.bracket-mobile .bracket-penalties {
+  padding: 0.35rem 0.6rem;
 }
 
 .bracket-mobile .bracket-match__info {
@@ -808,12 +819,82 @@ td.pts {
   font-size: 0.65rem;
 }
 
-.bracket-radio {
+.bracket-score-input {
   flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-  accent-color: #FFD700;
-  cursor: pointer;
+  width: 26px;
+  height: 22px;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--bg);
+  color: var(--text);
+  border: 1.5px solid var(--border);
+  border-radius: 5px;
+  outline: none;
+  -moz-appearance: textfield;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.bracket-score-input::-webkit-outer-spin-button,
+.bracket-score-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+.bracket-score-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(30, 144, 255, 0.25);
+}
+
+.bracket-team--winner { background: var(--qualified-bg); }
+.bracket-team--winner .bracket-team__name { color: #7CFC91; }
+
+.bracket-team--loser .bracket-team__name {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  opacity: 0.75;
+}
+
+.bracket-penalties {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.4rem;
+  background: #0d1525;
+  border-bottom: 1px solid var(--border);
+}
+
+.bracket-penalties--hidden { display: none; }
+
+.bracket-penalties__label {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-right: 0.15rem;
+}
+
+.bracket-pen-input {
+  width: 22px;
+  height: 18px;
+  text-align: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.bracket-pen-input::-webkit-outer-spin-button,
+.bracket-pen-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+.bracket-pen-input:focus { border-color: var(--accent); }
+
+.bracket-score-sep {
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 0.7rem;
 }
 
 /* ── Center column: Trophy + Final ──────────────────────────────────────── */

@@ -202,7 +202,7 @@ export function refreshBracketSeeds(qualified) {
   }
   propagateWinners();
   renderBracketTeams();
-  syncBracketRadios();
+  syncBracketInputs();
   updateChampion();
 }
 
@@ -315,7 +315,7 @@ export function buildBracket(container, qualified) {
   }
 
   updateChampion();
-  syncBracketRadios();
+  syncBracketInputs();
   _setupSlotDelegation();
 
   window.addEventListener("resize", scaleBracketToFit);
@@ -329,7 +329,7 @@ export function applyBracketResultsFromFirebase(results) {
   Object.assign(bracketResults, results);
   propagateWinners();
   renderBracketTeams();
-  syncBracketRadios();
+  syncBracketInputs();
   updateChampion();
   document.dispatchEvent(new CustomEvent("bracketUpdated"));
 }
@@ -339,7 +339,7 @@ export function resetBracket() {
   saveBracketState();
   propagateWinners();
   renderBracketTeams();
-  syncBracketRadios();
+  syncBracketInputs();
   updateChampion();
   document.dispatchEvent(new CustomEvent("bracketUpdated"));
 }
@@ -424,7 +424,7 @@ function buildMobileView() {
     }
 
     for (const match of round.matches) {
-      roundDiv.appendChild(buildMatchBox(match, "mobile-"));
+      roundDiv.appendChild(buildMatchBox(match));
     }
 
     contentArea.appendChild(roundDiv);
@@ -505,7 +505,7 @@ function buildCenterColumn() {
   return col;
 }
 
-function buildMatchBox(match, namePrefix = "") {
+function buildMatchBox(match) {
   const box = document.createElement("div");
   box.className = "bracket-match";
   box.dataset.matchId = match.id;
@@ -520,8 +520,9 @@ function buildMatchBox(match, namePrefix = "") {
     `<span class="bracket-match__time">${match.time}&nbsp;(GMT${_fmtOffset(utcOffset)})&ensp;${argTime}&nbsp;(GMT-3)</span>`;
   box.appendChild(info);
 
-  box.appendChild(buildTeamSlot(match.id, "home", match.seedHome, namePrefix));
-  box.appendChild(buildTeamSlot(match.id, "away", match.seedAway, namePrefix));
+  box.appendChild(buildTeamSlot(match.id, "home", match.seedHome));
+  box.appendChild(buildTeamSlot(match.id, "away", match.seedAway));
+  box.appendChild(buildPenaltiesRow(match.id));
 
   const probBar = document.createElement("div");
   probBar.className = "bracket-prob-bar";
@@ -581,21 +582,11 @@ export function updateBracketProbBars() {
   });
 }
 
-function buildTeamSlot(matchId, side, seedLabel, namePrefix = "") {
+function buildTeamSlot(matchId, side, seedLabel) {
   const slot = document.createElement("div");
   slot.className = "bracket-team";
   slot.dataset.matchId = matchId;
   slot.dataset.side = side;
-
-  const radio = document.createElement("input");
-  radio.type = "radio";
-  radio.name = `${namePrefix}match-${matchId}`;
-  radio.value = side;
-  radio.className = "bracket-radio";
-  radio.dataset.matchId = matchId;
-  radio.dataset.side = side;
-  radio.checked = bracketResults[matchId]?.winner === side;
-  radio.addEventListener("change", () => handleRadioSelection(matchId, side));
 
   const nameSpan = document.createElement("span");
   nameSpan.className = "bracket-team__name";
@@ -627,8 +618,66 @@ function buildTeamSlot(matchId, side, seedLabel, namePrefix = "") {
     slot.appendChild(indicator);
   }
 
-  slot.appendChild(radio);
+  const scoreInput = document.createElement("input");
+  scoreInput.type = "number";
+  scoreInput.min = "0";
+  scoreInput.step = "1";
+  scoreInput.className = "bracket-score-input";
+  scoreInput.dataset.matchId = matchId;
+  scoreInput.dataset.side = side;
+  scoreInput.value = bracketResults[matchId]?.[side] ?? "";
+  scoreInput.placeholder = "–";
+  scoreInput.setAttribute("aria-label", `Goles ${team ? team.code : seedLabel}`);
+  scoreInput.addEventListener("input", () => handleBracketScoreChange(matchId, side, scoreInput));
+  slot.appendChild(scoreInput);
+
   return slot;
+}
+
+// Fila de penales: solo visible cuando el resultado en tiempo reglamentario
+// termina empatado (ver _isDraw). Desempata el ganador vía _deriveWinner.
+function buildPenaltiesRow(matchId) {
+  const row = document.createElement("div");
+  row.className = "bracket-penalties bracket-penalties--hidden";
+  row.dataset.matchId = matchId;
+
+  const label = document.createElement("span");
+  label.className = "bracket-penalties__label";
+  label.textContent = "PEN";
+  row.appendChild(label);
+
+  const homeInput = document.createElement("input");
+  homeInput.type = "number";
+  homeInput.min = "0";
+  homeInput.step = "1";
+  homeInput.className = "bracket-pen-input";
+  homeInput.dataset.matchId = matchId;
+  homeInput.dataset.side = "home";
+  homeInput.value = bracketResults[matchId]?.pen?.home ?? "";
+  homeInput.placeholder = "–";
+  homeInput.setAttribute("aria-label", "Penales equipo local");
+  homeInput.addEventListener("input", () => handleBracketPenChange(matchId, "home", homeInput));
+  row.appendChild(homeInput);
+
+  const sep = document.createElement("span");
+  sep.className = "bracket-score-sep";
+  sep.textContent = "–";
+  row.appendChild(sep);
+
+  const awayInput = document.createElement("input");
+  awayInput.type = "number";
+  awayInput.min = "0";
+  awayInput.step = "1";
+  awayInput.className = "bracket-pen-input";
+  awayInput.dataset.matchId = matchId;
+  awayInput.dataset.side = "away";
+  awayInput.value = bracketResults[matchId]?.pen?.away ?? "";
+  awayInput.placeholder = "–";
+  awayInput.setAttribute("aria-label", "Penales equipo visitante");
+  awayInput.addEventListener("input", () => handleBracketPenChange(matchId, "away", awayInput));
+  row.appendChild(awayInput);
+
+  return row;
 }
 
 // ─── Actualizar texto de equipos en DOM existente ────────────────────────
@@ -652,7 +701,7 @@ function renderBracketTeams() {
     }
   });
 
-  syncBracketRadios();
+  syncBracketInputs();
   updateBracketProbBars();
   _updateRadialIfVisible();
 }
@@ -666,26 +715,97 @@ function findMatch(id) {
   return null;
 }
 
-// ─── Manejo de selección radio ───────────────────────────────────────────
-function handleRadioSelection(matchId, side) {
-  if (!bracketResults[matchId]) bracketResults[matchId] = {};
-  bracketResults[matchId].winner = side;
+// ─── Resultado → ganador ──────────────────────────────────────────────────
+// Un partido eliminatorio se resuelve así:
+//   1. Si hay marcador y difiere → gana quien metió más goles.
+//   2. Si el marcador está empatado → se define por penales (si se cargaron).
+//   3. Sin marcador → "winner" queda como pick manual (vista radial).
+function _isDraw(res) {
+  const h = parseInt(res?.home, 10);
+  const a = parseInt(res?.away, 10);
+  return !isNaN(h) && !isNaN(a) && h === a;
+}
+
+function _deriveWinner(res) {
+  if (!res) return null;
+  const h = parseInt(res.home, 10);
+  const a = parseInt(res.away, 10);
+  if (!isNaN(h) && !isNaN(a)) {
+    if (h > a) return "home";
+    if (a > h) return "away";
+    const ph = parseInt(res.pen?.home, 10);
+    const pa = parseInt(res.pen?.away, 10);
+    if (!isNaN(ph) && !isNaN(pa) && ph !== pa) return ph > pa ? "home" : "away";
+    return null; // empate a la espera de penales
+  }
+  return res.winner ?? null; // pick manual (tap en vista radial), sin marcador cargado
+}
+
+function _commitBracketChange() {
   saveBracketState();
   isUserAction = true;
   propagateWinners();
   renderBracketTeams();
-  syncBracketRadios();
   updateChampion();
   isUserAction = false;
   document.dispatchEvent(new CustomEvent("bracketUpdated"));
 }
 
-function syncBracketRadios() {
+// ─── Manejo de marcador y penales ─────────────────────────────────────────
+function handleBracketScoreChange(matchId, side, inputEl) {
+  if (inputEl.value !== "" && parseInt(inputEl.value, 10) < 0) inputEl.value = "0";
+  if (!bracketResults[matchId]) bracketResults[matchId] = {};
+  bracketResults[matchId][side] = inputEl.value;
+  bracketResults[matchId].winner = _deriveWinner(bracketResults[matchId]);
+  _commitBracketChange();
+}
+
+function handleBracketPenChange(matchId, side, inputEl) {
+  if (inputEl.value !== "" && parseInt(inputEl.value, 10) < 0) inputEl.value = "0";
+  if (!bracketResults[matchId]) bracketResults[matchId] = {};
+  if (!bracketResults[matchId].pen) bracketResults[matchId].pen = {};
+  bracketResults[matchId].pen[side] = inputEl.value;
+  bracketResults[matchId].winner = _deriveWinner(bracketResults[matchId]);
+  _commitBracketChange();
+}
+
+// Selección rápida (tap en la vista radial): define el ganador sin cargar
+// marcador. Descarta cualquier resultado numérico previo para que no quede
+// un marcador visible que contradiga al ganador elegido.
+function handleQuickPick(matchId, side) {
+  if (!bracketResults[matchId]) bracketResults[matchId] = {};
+  const res = bracketResults[matchId];
+  delete res.home;
+  delete res.away;
+  delete res.pen;
+  res.winner = side;
+  _commitBracketChange();
+}
+
+function syncBracketInputs() {
   if (!bracketRoot) return;
-  bracketRoot.querySelectorAll(".bracket-radio").forEach(radio => {
-    const mid = radio.dataset.matchId;
-    const side = radio.dataset.side;
-    radio.checked = bracketResults[mid]?.winner === side;
+
+  bracketRoot.querySelectorAll(".bracket-score-input").forEach(input => {
+    if (document.activeElement === input) return;
+    const val = bracketResults[input.dataset.matchId]?.[input.dataset.side] ?? "";
+    input.value = val;
+  });
+
+  bracketRoot.querySelectorAll(".bracket-pen-input").forEach(input => {
+    if (document.activeElement === input) return;
+    const val = bracketResults[input.dataset.matchId]?.pen?.[input.dataset.side] ?? "";
+    input.value = val;
+  });
+
+  bracketRoot.querySelectorAll(".bracket-penalties").forEach(row => {
+    row.classList.toggle("bracket-penalties--hidden", !_isDraw(bracketResults[row.dataset.matchId]));
+  });
+
+  bracketRoot.querySelectorAll(".bracket-team").forEach(slot => {
+    const res = bracketResults[slot.dataset.matchId];
+    const decided = !!res?.winner;
+    slot.classList.toggle("bracket-team--winner", decided && res.winner === slot.dataset.side);
+    slot.classList.toggle("bracket-team--loser", decided && res.winner !== slot.dataset.side);
   });
 }
 
@@ -738,7 +858,7 @@ function updateChampion() {
 
 // ─── Resultados reales ya cargados en el cuadro (para el Monte Carlo) ────
 // Devuelve { matchId: winnerCode } sólo para partidos ya jugados en la
-// realidad (radio seleccionado) y con ambos equipos resueltos a un código
+// realidad (marcador cargado o ganador definido) y con ambos equipos resueltos a un código
 // concreto. El motor de predicción usa esto para no re-simular partidos que
 // ya ocurrieron, evitando que un equipo eliminado siga figurando con
 // probabilidad de avanzar en la pestaña Probabilidades.
@@ -1120,7 +1240,7 @@ function _rebuildRadialSVG() {
   newSvg.addEventListener("click", e => {
     const g = e.target.closest?.("g[data-match-id]");
     if (!g) return;
-    handleRadioSelection(g.dataset.matchId, g.dataset.side);
+    handleQuickPick(g.dataset.matchId, g.dataset.side);
   });
 }
 
