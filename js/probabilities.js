@@ -110,7 +110,7 @@ export function renderProbabilitiesView(container, GROUPS, state) {
         strengthAdj: predCache.strengthAdj,
         iterations: 2000,
         timestamp: Date.now(),
-        stateHash: computeStateHash(state),
+        stateHash: computeStateHash(state, getFixedBracketResults()),
       }).catch(e => console.error("[probabilities] saveSimulationToFirebase:", e));
       // Notificar a app.js para que refresque las columnas Prob% en standings
       document.dispatchEvent(new CustomEvent("predictorUpdated"));
